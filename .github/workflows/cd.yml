@@ -1,0 +1,171 @@
+name: CD — Deploy to Azure
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ACTIVATION :
+#   Phase actuelle  → déclenchement manuel uniquement (workflow_dispatch)
+#   Quand Azure est provisionné → décommenter le bloc "push" ci-dessous
+# ─────────────────────────────────────────────────────────────────────────────
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environnement cible
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+      image_tag:
+        description: Tag d'image (défaut = SHA du commit)
+        required: false
+
+  # À activer quand Azure est prêt :
+  # push:
+  #   branches: [main]
+
+env:
+  # ── Renseigner ces secrets dans GitHub → Settings → Secrets ─────────────────
+  # AZURE_CREDENTIALS       : JSON du Service Principal  (az ad sp create-for-rbac)
+  # ACR_NAME                : nom du registry (ex: optiflowacr)
+  # AZURE_RESOURCE_GROUP    : groupe de ressources Azure
+  # AZURE_CONTAINER_APP_ENV : nom de l'environnement Container Apps
+  # AZURE_SUBSCRIPTION_ID   : ID de la souscription Azure
+  # ─────────────────────────────────────────────────────────────────────────────
+  REGISTRY: ${{ secrets.ACR_NAME }}.azurecr.io
+  RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  CONTAINER_APP_ENV: ${{ secrets.AZURE_CONTAINER_APP_ENV }}
+  IMAGE_TAG: ${{ github.event.inputs.image_tag || github.sha }}
+
+jobs:
+  # ── 1. Build & push toutes les images vers Azure Container Registry ──────────
+  build-and-push:
+    name: Build & Push — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: admin-service
+            context: services/admin-service
+          - service: operateur-service
+            context: services/operateur-service
+          - service: responsable-service
+            context: services/responsable-service
+          - service: client-service
+            context: services/client-service
+          - service: chauffeur-service
+            context: services/chauffeur-service
+          - service: frontend-web
+            context: frontend/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to ACR
+        run: az acr login --name ${{ secrets.ACR_NAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build & Push
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/optiflow-${{ matrix.service }}:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/optiflow-${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── 2. Déploiement sur Azure Container Apps ──────────────────────────────────
+  deploy:
+    name: Deploy to Azure Container Apps
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy — backend services
+        run: |
+          services=(
+            "admin-service:8083"
+            "operateur-service:8081"
+            "responsable-service:8084"
+            "client-service:3001"
+            "chauffeur-service:3002"
+          )
+          for entry in "${services[@]}"; do
+            svc="${entry%%:*}"
+            port="${entry##*:}"
+            echo "→ Deploying optiflow-$svc ..."
+            az containerapp update \
+              --name "optiflow-$svc" \
+              --resource-group "$RESOURCE_GROUP" \
+              --image "$REGISTRY/optiflow-$svc:$IMAGE_TAG" \
+              --set-env-vars \
+                "IMAGE_TAG=$IMAGE_TAG"
+          done
+
+      - name: Deploy — frontend
+        run: |
+          az containerapp update \
+            --name "optiflow-frontend-web" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$REGISTRY/optiflow-frontend-web:$IMAGE_TAG"
+
+      - name: Verify deployments
+        run: |
+          echo "=== Container Apps status ==="
+          az containerapp list \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "[].{name:name, status:properties.runningStatus, url:properties.configuration.ingress.fqdn}" \
+            --output table
+
+  # ── 3. Smoke test post-déploiement ───────────────────────────────────────────
+  smoke-test:
+    name: Smoke Test
+    runs-on: ubuntu-latest
+    needs: deploy
+    environment: ${{ github.event.inputs.environment || 'staging' }}
+
+    steps:
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get frontend URL
+        id: get-url
+        run: |
+          URL=$(az containerapp show \
+            --name "optiflow-frontend-web" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv)
+          echo "url=https://$URL" >> $GITHUB_OUTPUT
+
+      - name: Check frontend is up
+        run: |
+          echo "Testing ${{ steps.get-url.outputs.url }} ..."
+          curl --fail --silent --max-time 30 "${{ steps.get-url.outputs.url }}" > /dev/null
+          echo "Frontend OK"
+
+      - name: Check Keycloak auth endpoint
+        run: |
+          curl --fail --silent --max-time 30 \
+            "${{ steps.get-url.outputs.url }}/auth/realms/optiflow/.well-known/openid-configuration" \
+            > /dev/null
+          echo "Keycloak OK"
