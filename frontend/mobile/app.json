@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "OptiFlow Chauffeur",
+    "slug": "optiflow-chauffeur",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#f8fafc"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.optiflow.chauffeur"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0f172a"
+      },
+      "package": "com.optiflow.chauffeur"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "Autoriser OptiFlow à utiliser Face ID" }
+      ]
+    ],
+    "scheme": "optiflow-chauffeur"
+  }
+}

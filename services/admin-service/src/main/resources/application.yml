@@ -1,0 +1,73 @@
+server:
+  port: ${PORT:8083}
+
+spring:
+  application:
+    name: admin-service
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/admin_db}
+    username: ${SPRING_DATASOURCE_USERNAME:optiflow}
+    password: ${SPRING_DATASOURCE_PASSWORD:OptiFlow@Dev2024}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 30000
+      maximum-pool-size: 10
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: false
+    show-sql: false
+    open-in-view: false
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KEYCLOAK_INTERNAL_URL:http://keycloak:8180}/realms/${KEYCLOAK_REALM:optiflow}/protocol/openid-connect/certs
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKERS:kafka:29092}
+    consumer:
+      group-id: admin-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: true
+
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+keycloak:
+  internal-url: ${KEYCLOAK_INTERNAL_URL:http://keycloak:8180}
+  realm: ${KEYCLOAK_REALM:optiflow}
+  admin-client-id: ${KEYCLOAK_ADMIN_CLIENT_ID:admin-cli}
+  admin-username: ${KEYCLOAK_ADMIN_USERNAME:admin}
+  admin-password: ${KEYCLOAK_ADMIN_PASSWORD:Keycloak@Admin2024}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.optiflow: INFO
+    org.springframework.security: WARN
+    org.apache.kafka: WARN

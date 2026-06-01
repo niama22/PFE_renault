@@ -1,0 +1,437 @@
+# ================================================================
+# OPTIFLOW - Infrastructure Microservices
+# Architecture: Kong + Keycloak + PostgreSQL/PostGIS + Kafka + Redis
+# ================================================================
+
+networks:
+  optiflow-network:
+    driver: bridge
+    name: optiflow-network
+
+volumes:
+  postgres_data:
+    name: optiflow_postgres_data
+  redis_data:
+    name: optiflow_redis_data
+  zookeeper_data:
+    name: optiflow_zookeeper_data
+  zookeeper_logs:
+    name: optiflow_zookeeper_logs
+  kafka_data:
+    name: optiflow_kafka_data
+
+services:
+
+  # ================================================================
+  # DATABASE - PostgreSQL 15 + PostGIS
+  # Héberge toutes les DBs microservices + Keycloak
+  # ================================================================
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: optiflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-optiflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-OptiFlow@Dev2024}
+      POSTGRES_DB: ${POSTGRES_DB:-optiflow_main}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sh:/docker-entrypoint-initdb.d/init.sh
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-optiflow} -d ${POSTGRES_DB:-optiflow_main}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ================================================================
+  # CACHE - Redis 7
+  # Sessions, cache, rate-limiting données
+  # ================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: optiflow-redis
+    restart: unless-stopped
+    command: >
+      redis-server
+      --requirepass ${REDIS_PASSWORD:-Redis@Dev2024}
+      --appendonly yes
+      --appendfsync everysec
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-Redis@Dev2024}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ================================================================
+  # MESSAGE BROKER - Apache Kafka via Confluent Platform
+  # ================================================================
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.3
+    container_name: optiflow-zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_INIT_LIMIT: 10
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_logs:/var/lib/zookeeper/log
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "cub zk-ready localhost:2181 5 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: optiflow-kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:29092,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 100
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+      KAFKA_JMX_PORT: 9999
+      KAFKA_JMX_HOSTNAME: localhost
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # --- Création des topics Kafka ---
+  kafka-setup:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: optiflow-kafka-setup
+    restart: "no"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - optiflow-network
+    command: >
+      bash -c "
+        echo '=== Creating OptiFlow Kafka Topics ===' &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.created      --partitions 3 --replication-factor 1 --config retention.ms=604800000 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.validated    --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.rejected     --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.rcm-export   --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic gps.updated            --partitions 6 --replication-factor 1 --config retention.ms=86400000 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic mission.assigned       --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic mission.started        --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic mission.completed      --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic tournee.created        --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic tournee.validated      --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic responsable.validated  --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic incident.created       --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic incident.resolved      --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic notification.send      --partitions 3 --replication-factor 1 &&
+        echo '=== Topics created ===' &&
+        kafka-topics --list --bootstrap-server kafka:29092
+      "
+
+  # --- Kafka UI (monitoring) ---
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: optiflow-kafka-ui
+    restart: unless-stopped
+    depends_on:
+      - kafka
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: optiflow-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+      AUTH_TYPE: "disabled"
+      MANAGEMENT_HEALTH_LDAP_ENABLED: "false"
+    networks:
+      - optiflow-network
+
+  # ================================================================
+  # IAM - Keycloak 23
+  # Authentification JWT, gestion des rôles RBAC
+  # ================================================================
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.7
+    container_name: optiflow-keycloak
+    restart: unless-stopped
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: ${POSTGRES_USER:-optiflow}
+      KC_DB_PASSWORD: ${POSTGRES_PASSWORD:-OptiFlow@Dev2024}
+      KC_DB_SCHEMA: public
+      KEYCLOAK_ADMIN: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-Keycloak@Admin2024}
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_PORT: 8180
+      KC_HOSTNAME_STRICT: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+      KC_LOG_LEVEL: INFO
+      KC_FEATURES: token-exchange,admin-fine-grained-authz
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "8180:8180"
+    volumes:
+      - ./infrastructure/keycloak:/opt/keycloak/data/import
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/localhost/8180 2>/dev/null && exec 3>&- || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 60s
+
+  # ================================================================
+  # API GATEWAY - Kong 3.5 (DB-less mode)
+  # Routing, Rate Limiting, CORS
+  # ================================================================
+  kong:
+    image: kong:3.5
+    container_name: optiflow-kong
+    restart: unless-stopped
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_LOG_LEVEL: info
+      KONG_PLUGINS: bundled
+      KONG_NGINX_WORKER_PROCESSES: "2"
+    ports:
+      - "8000:8000"   # HTTP Proxy (point d'entrée clients)
+      - "8443:8443"   # HTTPS Proxy
+      - "8001:8001"   # Admin API (dev seulement)
+    volumes:
+      - ./infrastructure/kong:/kong/declarative
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ================================================================
+  # MICROSERVICES
+  # ================================================================
+
+  client-service:
+    build: ./services/client-service
+    container_name: optiflow-client-service
+    restart: unless-stopped
+    ports:
+      - "${CLIENT_SERVICE_PORT:-3001}:3001"
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-optiflow}:${POSTGRES_PASSWORD:-OptiFlow@Dev2024}@postgres:5432/client_db
+      REDIS_URL: redis://:${REDIS_PASSWORD:-Redis@Dev2024}@redis:6379
+      KAFKA_BROKERS: kafka:29092
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8180
+      KEYCLOAK_REALM: optiflow
+      KEYCLOAK_CLIENT_ID: optiflow-web
+      KEYCLOAK_CLIENT_SECRET: optiflow-web-secret-change-in-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      optiflow-network:
+        aliases:
+          - client-service
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/docs-json > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # gps-service: (Étape 6)
+
+  chauffeur-service:
+    build: ./services/chauffeur-service
+    container_name: optiflow-chauffeur-service
+    restart: unless-stopped
+    ports:
+      - "${CHAUFFEUR_SERVICE_PORT:-3002}:3002"
+    environment:
+      NODE_ENV: development
+      PORT: 3002
+      DATABASE_URL: postgresql://${POSTGRES_USER:-optiflow}:${POSTGRES_PASSWORD:-OptiFlow@Dev2024}@postgres:5432/chauffeur_db
+      KAFKA_BROKERS: kafka:29092
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8180
+      KEYCLOAK_REALM: optiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3002/docs-json > /dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  admin-service:
+    build: ./services/admin-service
+    container_name: optiflow-admin-service
+    restart: unless-stopped
+    ports:
+      - "${ADMIN_SERVICE_PORT:-8082}:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/admin_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-optiflow}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-OptiFlow@Dev2024}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8180
+      KEYCLOAK_REALM: optiflow
+      KEYCLOAK_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-Keycloak@Admin2024}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8083/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  operateur-service:
+    build: ./services/operateur-service
+    container_name: optiflow-operateur-service
+    ports:
+      - "${OPERATEUR_SERVICE_PORT:-8091}:8081"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/operateur_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-optiflow}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-OptiFlow@Dev2024}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8180
+      KEYCLOAK_REALM: optiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      optiflow-network:
+        aliases:
+          - operateur-service
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8081/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  responsable-service:
+    build: ./services/responsable-service
+    container_name: optiflow-responsable-service
+    ports:
+      - "${RESPONSABLE_SERVICE_PORT:-8094}:8084"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/operateur_db
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-optiflow}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-OptiFlow@Dev2024}
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8180
+      KEYCLOAK_REALM: optiflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    networks:
+      - optiflow-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8084/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ================================================================
+  # FRONTEND - React + Vite (production build via nginx)
+  # ================================================================
+  frontend-web:
+    build: ./frontend/web
+    container_name: optiflow-frontend-web
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - keycloak
+      - admin-service
+      - operateur-service
+      - client-service
+      - responsable-service
+    networks:
+      - optiflow-network

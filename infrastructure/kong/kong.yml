@@ -1,0 +1,213 @@
+_format_version: "3.0"
+_transform: true
+
+# ================================================================
+# OptiFlow - Kong API Gateway Declarative Configuration
+# Mode: DB-less
+# JWT validation est gérée par chaque microservice via Keycloak JWKS
+# ================================================================
+
+# --- Plugins globaux ---
+plugins:
+  - name: cors
+    config:
+      origins:
+        - "http://localhost:3000"
+        - "http://localhost:3001"
+        - "exp://localhost:19000"
+        - "*"
+      methods:
+        - HEAD
+        - GET
+        - POST
+        - PUT
+        - PATCH
+        - DELETE
+        - OPTIONS
+      headers:
+        - Accept
+        - Accept-Version
+        - Content-Length
+        - Content-MD5
+        - Content-Type
+        - Date
+        - Authorization
+        - X-Auth-Token
+        - X-Request-ID
+      exposed_headers:
+        - X-Auth-Token
+        - X-Request-ID
+      credentials: true
+      max_age: 3600
+      preflight_continue: false
+
+  - name: rate-limiting
+    config:
+      minute: 300
+      hour: 10000
+      policy: local
+      fault_tolerant: true
+      hide_client_headers: false
+
+# ================================================================
+# Services & Routes
+# ================================================================
+services:
+
+  # --- Service Client (NestJS) ---
+  - name: client-service
+    url: http://client-service:3001
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    retries: 3
+    routes:
+      - name: client-api
+        paths:
+          - /api/v1/clients
+        strip_path: false
+        preserve_host: false
+        protocols:
+          - http
+          - https
+      - name: client-auth
+        paths:
+          - /api/v1/auth/client
+        strip_path: false
+        protocols:
+          - http
+          - https
+
+  # --- Service Opérateur (Spring Boot) ---
+  - name: operateur-service
+    url: http://operateur-service:8081
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    retries: 3
+    routes:
+      - name: operateur-api
+        paths:
+          - /api/v1/operateur
+        strip_path: false
+        preserve_host: false
+        protocols:
+          - http
+          - https
+      - name: commandes-api
+        paths:
+          - /api/v1/commandes
+        strip_path: false
+        protocols:
+          - http
+          - https
+      - name: tournees-api
+        paths:
+          - /api/v1/tournees
+        strip_path: false
+        protocols:
+          - http
+          - https
+
+  # --- Service Chauffeur/Transporteur (NestJS) ---
+  - name: chauffeur-service
+    url: http://chauffeur-service:3002
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    retries: 3
+    routes:
+      - name: chauffeur-api
+        paths:
+          - /api/v1/chauffeurs
+        strip_path: false
+        protocols:
+          - http
+          - https
+      - name: missions-api
+        paths:
+          - /api/v1/missions
+        strip_path: false
+        protocols:
+          - http
+          - https
+
+  # --- Service Admin (Spring Boot) ---
+  - name: admin-service
+    url: http://admin-service:8082
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    retries: 3
+    routes:
+      - name: admin-api
+        paths:
+          - /api/v1/admin
+        strip_path: false
+        protocols:
+          - http
+          - https
+
+  # --- Service Responsable (Spring Boot) ---
+  - name: responsable-service
+    url: http://responsable-service:8083
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    retries: 3
+    routes:
+      - name: responsable-api
+        paths:
+          - /api/v1/responsable
+        strip_path: false
+        protocols:
+          - http
+          - https
+
+  # --- Service GPS Tracking (Go) ---
+  - name: gps-service
+    url: http://gps-service:8084
+    connect_timeout: 30000
+    write_timeout: 30000
+    read_timeout: 30000
+    retries: 3
+    routes:
+      - name: gps-api
+        paths:
+          - /api/v1/gps
+        strip_path: false
+        protocols:
+          - http
+          - https
+
+  # --- Service Reporting/KPI (Python FastAPI) ---
+  - name: reporting-service
+    url: http://reporting-service:8085
+    connect_timeout: 120000
+    write_timeout: 120000
+    read_timeout: 120000
+    retries: 2
+    routes:
+      - name: reporting-api
+        paths:
+          - /api/v1/reporting
+        strip_path: false
+        protocols:
+          - http
+          - https
+
+  # --- Service IA ETA (Python FastAPI) ---
+  - name: ai-service
+    url: http://ai-service:8086
+    connect_timeout: 120000
+    write_timeout: 120000
+    read_timeout: 120000
+    retries: 2
+    routes:
+      - name: ai-api
+        paths:
+          - /api/v1/ai
+        strip_path: false
+        protocols:
+          - http
+          - https

@@ -1,0 +1,239 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────
+   Design tokens
+───────────────────────────────────────────── */
+:root {
+  /* Themeable tokens — dark defaults */
+  --surface-bg:       #080c14;
+  --surface-card:     rgba(14, 21, 37, 0.85);
+  --surface-sidebar:  #070b12;
+  --surface-input:    #04070f;
+  --surface-hover:    rgba(124, 58, 237, 0.15);
+  --surface-badge:    rgba(20, 30, 53, 0.7);
+  --surface-header:   rgba(8, 12, 20, 0.88);
+
+  --text-primary:     #e2e8f0;
+  --text-secondary:   #94a3b8;
+  --text-muted:       #475569;
+
+  --border-card:      rgba(109, 40, 217, 0.2);
+  --border-input:     rgba(109, 40, 217, 0.3);
+  --border-sidebar:   rgba(124, 58, 237, 0.12);
+  --border-section:   rgba(124, 58, 237, 0.09);
+  --border-subtle:    rgba(255, 255, 255, 0.05);
+  --border-row:       rgba(255, 255, 255, 0.05);
+
+  --shadow-card:      0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-hover:     0 8px 32px rgba(0, 0, 0, 0.55), 0 0 20px rgba(124,58,237,0.1);
+}
+
+html.light {
+  --surface-bg:       #eef2fa;
+  --surface-card:     rgba(255, 255, 255, 0.96);
+  --surface-sidebar:  #ffffff;
+  --surface-input:    #ffffff;
+  --surface-hover:    rgba(124, 58, 237, 0.07);
+  --surface-badge:    rgba(248, 249, 255, 0.9);
+  --surface-header:   rgba(255, 255, 255, 0.92);
+
+  --text-primary:     #1e293b;
+  --text-secondary:   #4b5563;
+  --text-muted:       #9ca3af;
+
+  --border-card:      rgba(124, 58, 237, 0.1);
+  --border-input:     rgba(124, 58, 237, 0.2);
+  --border-sidebar:   rgba(124, 58, 237, 0.1);
+  --border-section:   rgba(124, 58, 237, 0.07);
+  --border-subtle:    rgba(0, 0, 0, 0.06);
+  --border-row:       rgba(0, 0, 0, 0.06);
+
+  --shadow-card:      0 2px 16px rgba(124, 58, 237, 0.06), 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-hover:     0 8px 24px rgba(0, 0, 0, 0.08), 0 0 20px rgba(124,58,237,0.07);
+}
+
+/* ─────────────────────────────────────────────
+   Base
+───────────────────────────────────────────── */
+@layer base {
+  html { @apply scroll-smooth; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    @apply antialiased;
+    background-color: var(--surface-bg);
+    color: var(--text-primary);
+    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none'%3E%3Cg fill='%237c3aed' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    transition: background-color 0.3s, color 0.3s;
+  }
+
+  ::-webkit-scrollbar { @apply w-1.5 h-1.5; }
+  ::-webkit-scrollbar-track { background-color: var(--surface-bg); }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(109, 40, 217, 0.45);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: #7c3aed; }
+}
+
+/* ─────────────────────────────────────────────
+   Components
+───────────────────────────────────────────── */
+@layer components {
+
+  /* Glass card */
+  .glass {
+    @apply backdrop-blur-sm rounded-xl;
+    background-color: var(--surface-card);
+    border: 1px solid var(--border-card);
+    box-shadow: var(--shadow-card);
+    transition: background-color 0.3s, border-color 0.3s, box-shadow 0.3s;
+  }
+
+  .glass-hover {
+    @apply glass transition-all duration-300 hover:-translate-y-0.5;
+  }
+  .glass-hover:hover {
+    border-color: rgba(124, 58, 237, 0.3);
+    box-shadow: var(--shadow-hover);
+  }
+
+  /* Nav item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-lg
+           transition-all duration-200 cursor-pointer text-sm font-medium;
+    color: var(--text-secondary);
+  }
+  .nav-item:hover {
+    color: var(--text-primary);
+    background-color: var(--surface-hover);
+  }
+  .nav-item.active {
+    color: #a78bfa;
+    background-color: rgba(124, 58, 237, 0.15);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    box-shadow: inset 0 0 20px rgba(124, 58, 237, 0.08);
+  }
+
+  /* Input */
+  .input-dark {
+    @apply w-full rounded-lg px-4 py-2.5 text-sm transition-all duration-200;
+    background-color: var(--surface-input);
+    border: 1px solid var(--border-input);
+    color: var(--text-primary);
+    outline: none;
+  }
+  .input-dark::placeholder { color: var(--text-muted); }
+  .input-dark:focus {
+    border-color: rgba(139, 92, 246, 0.6);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.12);
+  }
+
+  /* Stat number */
+  .stat-number {
+    @apply text-3xl font-bold bg-clip-text text-transparent;
+    background-image: linear-gradient(to right, #c4b5fd, #7c3aed);
+  }
+
+  /* Status badges */
+  .badge-pending  { @apply text-amber-500;  background-color: rgba(245,158,11,0.12);  border: 1px solid rgba(245,158,11,0.25); }
+  .badge-validated{ @apply text-emerald-500;background-color: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); }
+  .badge-rejected { @apply text-red-500;    background-color: rgba(239,68,68,0.12);   border: 1px solid rgba(239,68,68,0.25); }
+  .badge-transit  { @apply text-blue-500;   background-color: rgba(59,130,246,0.12);  border: 1px solid rgba(59,130,246,0.25); }
+  .badge-completed{ @apply text-slate-500;  background-color: rgba(100,116,139,0.12); border: 1px solid rgba(100,116,139,0.25); }
+  .badge-open     { @apply text-orange-500; background-color: rgba(249,115,22,0.12);  border: 1px solid rgba(249,115,22,0.25); }
+  .badge-progress { @apply text-violet-500; background-color: rgba(139,92,246,0.12);  border: 1px solid rgba(139,92,246,0.25); }
+
+  /* Glow */
+  .glow {
+    @apply shadow-brand;
+    text-shadow: 0 0 20px rgba(124, 58, 237, 0.5);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Light-mode overrides for Tailwind utilities
+   NOTE: text-white is NOT overridden — white text
+   must stay white on brand-coloured backgrounds
+───────────────────────────────────────────── */
+html.light .text-slate-100 { color: #111827 !important; }
+html.light .text-slate-200 { color: #1f2937 !important; }
+html.light .text-slate-300 { color: #374151 !important; }
+html.light .text-slate-400 { color: #6b7280 !important; }
+html.light .text-slate-500 { color: #9ca3af !important; }
+html.light .text-slate-600 { color: #d1d5db !important; }
+
+/* Named brand / status colours stay vivid */
+html.light .text-brand-400  { color: #6d28d9 !important; }
+html.light .text-brand-500  { color: #5b21b6 !important; }
+html.light .text-emerald-400{ color: #059669 !important; }
+html.light .text-blue-400   { color: #2563eb !important; }
+html.light .text-amber-400  { color: #d97706 !important; }
+html.light .text-red-400    { color: #dc2626 !important; }
+html.light .text-orange-400 { color: #ea580c !important; }
+html.light .text-purple-400 { color: #7c3aed !important; }
+
+/* Navy backgrounds → light surface */
+html.light .bg-navy-950 { background-color: #eef2fa !important; }
+html.light .bg-navy-900 { background-color: #f1f5ff !important; }
+html.light .bg-navy-800 { background-color: #e8edf8 !important; }
+html.light .bg-navy-700 { background-color: #dde3f0 !important; }
+html.light .bg-navy-600 { background-color: #cdd4e6 !important; }
+
+/* Opacity variants */
+html.light .bg-navy-700\/60 { background-color: rgba(221,227,240,0.7) !important; }
+html.light .bg-navy-800\/60 { background-color: rgba(232,237,248,0.6) !important; }
+
+/* Subtle borders used in tables & lists */
+html.light .border-white\/5  { border-color: rgba(0,0,0,0.07) !important; }
+html.light .border-white\/4  { border-color: rgba(0,0,0,0.05) !important; }
+html.light .hover\:bg-white\/2:hover { background-color: rgba(124,58,237,0.03) !important; }
+
+/* Progress-bar track */
+html.light .bg-navy-700.rounded-full { background-color: #dde3f0 !important; }
+
+/* Active nav in light mode is brand purple */
+html.light .nav-item.active {
+  color: #7c3aed !important;
+  background-color: rgba(124, 58, 237, 0.08) !important;
+  border-color: rgba(124, 58, 237, 0.18) !important;
+  box-shadow: none !important;
+}
+
+/* Toaster */
+html.light [data-sonner-toast] {
+  background: rgba(255,255,255,0.96) !important;
+  border: 1px solid rgba(124,58,237,0.12) !important;
+  color: #1e293b !important;
+}
+
+/* ─────────────────────────────────────────────
+   Skeleton / shimmer
+───────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255,255,255,0.03) 25%,
+    rgba(255,255,255,0.07) 50%,
+    rgba(255,255,255,0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+html.light .skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(0,0,0,0.03) 25%,
+    rgba(0,0,0,0.07) 50%,
+    rgba(0,0,0,0.03) 75%
+  );
+  background-size: 200% 100%;
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
