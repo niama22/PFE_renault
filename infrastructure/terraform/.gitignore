@@ -1,0 +1,19 @@
+# State Terraform (ne jamais commiter)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Variables sensibles
+*.tfvars.local
+secrets.tfvars
+
+# Overrides
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Crash logs
+crash.log
+crash.*.log

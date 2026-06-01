@@ -23,12 +23,17 @@ on:
   #   branches: [main]
 
 env:
-  # ── Renseigner ces secrets dans GitHub → Settings → Secrets ─────────────────
-  # AZURE_CREDENTIALS       : JSON du Service Principal  (az ad sp create-for-rbac)
-  # ACR_NAME                : nom du registry (ex: optiflowacr)
-  # AZURE_RESOURCE_GROUP    : groupe de ressources Azure
-  # AZURE_CONTAINER_APP_ENV : nom de l'environnement Container Apps
-  # AZURE_SUBSCRIPTION_ID   : ID de la souscription Azure
+  # ── Secrets GitHub requis (Settings → Secrets) ───────────────────────────────
+  # AZURE_CREDENTIALS         : JSON Service Principal (az ad sp create-for-rbac)
+  # AZURE_CLIENT_ID           : Client ID du Service Principal
+  # AZURE_CLIENT_SECRET       : Client Secret
+  # AZURE_SUBSCRIPTION_ID     : ID souscription Azure
+  # AZURE_TENANT_ID           : Tenant ID Azure
+  # ACR_NAME                  : `terraform output -raw acr_name`
+  # AZURE_RESOURCE_GROUP      : `terraform output -raw resource_group_name`
+  # AZURE_CONTAINER_APP_ENV   : `terraform output -raw container_app_environment_name`
+  # TF_POSTGRES_PASSWORD      : mot de passe PostgreSQL (identique à Terraform)
+  # TF_KEYCLOAK_ADMIN_PASSWORD: mot de passe admin Keycloak
   # ─────────────────────────────────────────────────────────────────────────────
   REGISTRY: ${{ secrets.ACR_NAME }}.azurecr.io
   RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
