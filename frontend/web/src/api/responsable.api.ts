@@ -101,3 +101,23 @@ export const runOptimization = (orderIds: string[], clusterRadiusKm = 80, availa
     clusterRadiusKm,
     availableTrucksOnly,
   }).then(r => r.data.data)
+
+// Cancellations
+export const getResponsableCancellations = () =>
+  responsableApi.get<any[]>('/cancellations').then(r => r.data ?? [])
+
+export const approveCancellation = (id: string) =>
+  responsableApi.post<any>(`/cancellations/${id}/approve`).then(r => r.data)
+
+export const rejectCancellation = (id: string, reason: string) =>
+  responsableApi.post<any>(`/cancellations/${id}/reject`, { reason }).then(r => r.data)
+
+export const downloadCancellationDocumentRespo = async (id: string, orderNumber?: string) => {
+  const resp = await responsableApi.get(`/cancellations/${id}/document`, { responseType: 'blob' })
+  const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `annulation-${orderNumber ?? id}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
+}
