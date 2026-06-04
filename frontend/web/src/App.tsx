@@ -11,10 +11,12 @@ import UsersPage from '@/pages/admin/UsersPage'
 import AuditLogsPage from '@/pages/admin/AuditLogsPage'
 
 // Operateur
+import OperateurDashboardPage from '@/pages/operateur/DashboardPage'
 import OperateurOrdersPage from '@/pages/operateur/OrdersPage'
 import OperateurTourneesPage from '@/pages/operateur/TourneesPage'
 import OperateurIncidentsPage from '@/pages/operateur/IncidentsPage'
 import OperateurOptimizationPage from '@/pages/operateur/OptimizationPage'
+import OperateurCancellationsPage from '@/pages/operateur/CancellationsPage'
 
 // Client
 import ClientOrdersPage from '@/pages/client/OrdersPage'
@@ -25,6 +27,7 @@ import ClientProfilePage from '@/pages/client/ProfilePage'
 import ResponsableDashboardPage  from '@/pages/responsable/DashboardPage'
 import ResponsableTourneesPage   from '@/pages/responsable/TourneesPage'
 import ResponsableIncidentsPage  from '@/pages/responsable/IncidentsPage'
+import ResponsableCancellationsPage from '@/pages/responsable/CancellationsPage'
 import SupervisionPage           from '@/pages/responsable/SupervisionPage'
 import TrucksPage                from '@/pages/responsable/TrucksPage'
 import VehicleModelsPage         from '@/pages/responsable/VehicleModelsPage'
@@ -39,7 +42,7 @@ function RootRedirect() {
   if (!isAuthenticated) return <Navigate to="/login" replace />
   const role = primaryRole()
   if (role === 'admin')       return <Navigate to="/admin/dashboard" replace />
-  if (role === 'operateur')   return <Navigate to="/operateur/orders" replace />
+  if (role === 'operateur')   return <Navigate to="/operateur/dashboard" replace />
   if (role === 'responsable') return <Navigate to="/responsable/dashboard" replace />
   if (role === 'client')      return <Navigate to="/client/orders" replace />
   if (role === 'chauffeur')   return <Navigate to="/chauffeur" replace />
@@ -70,11 +73,13 @@ export default function App() {
           <Layout />
         </ProtectedRoute>
       }>
-        <Route index element={<Navigate to="orders" replace />} />
-        <Route path="orders"       element={<OperateurOrdersPage />} />
-        <Route path="tournees"     element={<OperateurTourneesPage />} />
-        <Route path="incidents"    element={<OperateurIncidentsPage />} />
-        <Route path="optimization" element={<OperateurOptimizationPage />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="dashboard"     element={<OperateurDashboardPage />} />
+        <Route path="orders"        element={<OperateurOrdersPage />} />
+        <Route path="tournees"      element={<OperateurTourneesPage />} />
+        <Route path="incidents"     element={<OperateurIncidentsPage />} />
+        <Route path="optimization"  element={<OperateurOptimizationPage />} />
+        <Route path="cancellations" element={<OperateurCancellationsPage />} />
       </Route>
 
       {/* Responsable */}
@@ -88,6 +93,7 @@ export default function App() {
         <Route path="supervision"          element={<SupervisionPage />} />
         <Route path="tournees"             element={<ResponsableTourneesPage />} />
         <Route path="incidents"            element={<ResponsableIncidentsPage />} />
+        <Route path="cancellations"        element={<ResponsableCancellationsPage />} />
         <Route path="trucks"               element={<TrucksPage />} />
         <Route path="vehicle-models"       element={<VehicleModelsPage />} />
         <Route path="optimization-config"  element={<OptimizationConfigPage />} />

@@ -472,6 +472,7 @@ export default function OperateurOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('ACTIVE')
   const [dateFilter, setDateFilter] = useState('')
   const [cityFilter, setCityFilter] = useState('')
+  const [chassisFilter, setChassisFilter] = useState('')
   const [confirmValidate, setConfirmValidate] = useState<Order | null>(null)
   const [rejectTarget, setRejectTarget] = useState<Order | null>(null)
   const [editTarget, setEditTarget] = useState<Order | null>(null)
@@ -490,9 +491,11 @@ export default function OperateurOrdersPage() {
   // History (delivered) orders query
   const [historyPage, setHistoryPage] = useState(0)
   const [historySearch, setHistorySearch] = useState('')
+  const [historyDateFilter, setHistoryDateFilter] = useState('')
+  const [historyChassisFilter, setHistoryChassisFilter] = useState('')
   const { data: historyData, isLoading: historyLoading } = useQuery({
     queryKey: ['operateur-orders-history', historyPage],
-    queryFn: () => getOrders(historyPage, 2, 'DELIVERED'),
+    queryFn: () => getOrders(historyPage, 50, 'DELIVERED'),
     enabled: section === 'history',
   })
 
@@ -516,7 +519,10 @@ export default function OperateurOrdersPage() {
     }
     return true
   })
-  const chassisRows = filteredOrders.flatMap((o: any) => expandToChassis(o))
+  const allChassisRows = filteredOrders.flatMap((o: any) => expandToChassis(o))
+  const chassisRows = chassisFilter.trim()
+    ? allChassisRows.filter(r => r.chassisId.toLowerCase().includes(chassisFilter.trim().toLowerCase()))
+    : allChassisRows
   const orderMap = Object.fromEntries(orders.map((o: any) => [o.id, o]))
 
   // Build city and date lists from loaded orders for dropdowns
@@ -535,11 +541,18 @@ export default function OperateurOrdersPage() {
   // History section data
   const historyOrders = historyData?.content ?? []
   const historyTotalPages = historyData?.totalPages ?? 1
+  const historyAvailableDates = [...new Set(
+    historyOrders.map((o: any) => o.requestedDeliveryDate?.split('T')[0]).filter(Boolean)
+  )].sort() as string[]
   const filteredHistory = historyOrders.filter((o: any) => {
     const addr = typeof o.deliveryAddress === 'string' ? o.deliveryAddress : JSON.stringify(o.deliveryAddress ?? '')
-    return `${o.clientCode ?? ''} ${addr}`.toLowerCase().includes(historySearch.toLowerCase())
+    if (!`${o.clientCode ?? ''} ${addr}`.toLowerCase().includes(historySearch.toLowerCase())) return false
+    if (historyDateFilter && o.requestedDeliveryDate?.split('T')[0] !== historyDateFilter) return false
+    return true
   })
-  const historyChassis = filteredHistory.flatMap((o: any) => expandToChassis(o))
+  const historyChassis = filteredHistory.flatMap((o: any) => expandToChassis(o)).filter(r =>
+    !historyChassisFilter || r.chassisId.toLowerCase().includes(historyChassisFilter.toLowerCase())
+  )
   const historyOrderMap = Object.fromEntries(historyOrders.map((o: any) => [o.id, o]))
 
   return (
@@ -608,6 +621,16 @@ export default function OperateurOrdersPage() {
                     ))}
                   </select>
                 </div>
+                {/* Chassis filter */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                  <input
+                    value={chassisFilter}
+                    onChange={e => { setChassisFilter(e.target.value); setPage(0) }}
+                    placeholder="ID châssis..."
+                    className="input-dark pl-9 text-sm w-36 font-mono"
+                  />
+                </div>
                 {/* City filter */}
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
@@ -664,9 +687,36 @@ export default function OperateurOrdersPage() {
         {section === 'history' && (
           <>
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-3 flex-wrap justify-between">
-              <div className="relative min-w-[200px] max-w-sm flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-                <input value={historySearch} onChange={e => setHistorySearch(e.target.value)} placeholder="Rechercher dans l'historique..." className="input-dark w-full pl-9 text-sm" />
+              <div className="flex items-center gap-3 flex-1 flex-wrap">
+                <div className="relative min-w-[200px] max-w-sm flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                  <input value={historySearch} onChange={e => setHistorySearch(e.target.value)} placeholder="Rechercher dans l'historique..." className="input-dark w-full pl-9 text-sm" />
+                </div>
+                {/* Date filter historique */}
+                <div className="relative">
+                  <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                  <select
+                    value={historyDateFilter}
+                    onChange={e => setHistoryDateFilter(e.target.value)}
+                    className="input-dark pl-9 text-sm w-48">
+                    <option value="">Toutes les dates</option>
+                    {historyAvailableDates.map(d => (
+                      <option key={d} value={d}>
+                        {new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Chassis ID filter historique */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+                  <input
+                    value={historyChassisFilter}
+                    onChange={e => setHistoryChassisFilter(e.target.value)}
+                    placeholder="ID châssis..."
+                    className="input-dark pl-9 text-sm w-36 font-mono"
+                  />
+                </div>
               </div>
               {historyChassis.length > 0 && (
                 <button onClick={() => exportToExcel(historyChassis)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-brand-600/40 hover:bg-brand-600/10 text-brand-400 text-xs font-medium transition-colors">

@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { AlertTriangle, CheckCircle2, UserCheck, XCircle } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, UserCheck, XCircle, Truck, Search, CalendarDays } from 'lucide-react'
 import { toast } from 'sonner'
 import { getIncidents, takeIncident, resolveIncident, closeIncident } from '@/api/operateur.api'
+import UserInfoButton from '@/components/shared/UserInfoButton'
 import Header from '@/components/layout/Header'
 import StatusBadge from '@/components/shared/StatusBadge'
 import EmptyState from '@/components/shared/EmptyState'
@@ -68,7 +69,10 @@ const SEVERITY_CONFIG: Record<string, { color: string; label: string }> = {
 
 export default function OperateurIncidentsPage() {
   const qc = useQueryClient()
-  const [statusFilter, setStatusFilter] = useState('')
+  const [statusFilter,   setStatusFilter]   = useState('')
+  const [severityFilter, setSeverityFilter] = useState('')
+  const [dateFilter,     setDateFilter]     = useState('')
+  const [searchFilter,   setSearchFilter]   = useState('')
   const [page, setPage] = useState(0)
   const [takeTarget, setTakeTarget]       = useState<Incident | null>(null)
   const [resolveTarget, setResolveTarget] = useState<Incident | null>(null)
@@ -80,8 +84,18 @@ export default function OperateurIncidentsPage() {
     refetchInterval: 30_000,
   })
 
-  const totalPages = Math.ceil(allIncidents.length / PAGE_SIZE)
-  const incidents = allIncidents.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const filteredIncidents = allIncidents.filter((inc: any) => {
+    if (severityFilter && inc.severity !== severityFilter) return false
+    if (dateFilter && inc.createdAt?.split('T')[0] !== dateFilter) return false
+    if (searchFilter) {
+      const q = searchFilter.toLowerCase()
+      if (!`${inc.description ?? ''} ${inc.clientCode ?? ''} ${(inc as any).clientId ?? ''}`.toLowerCase().includes(q)) return false
+    }
+    return true
+  })
+
+  const totalPages = Math.ceil(filteredIncidents.length / PAGE_SIZE)
+  const incidents = filteredIncidents.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
   const takeMutation = useMutation({
     mutationFn: (id: string) => takeIncident(id),
@@ -109,7 +123,18 @@ export default function OperateurIncidentsPage() {
 
       <div className="flex-1 p-6 space-y-5">
         <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3">
+          className="flex items-center gap-3 flex-wrap">
+          {/* Recherche texte */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+            <input
+              value={searchFilter}
+              onChange={e => { setSearchFilter(e.target.value); setPage(0) }}
+              placeholder="Rechercher description / client..."
+              className="input-dark pl-9 text-sm w-56"
+            />
+          </div>
+          {/* Filtre statut */}
           <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setPage(0) }}
             className="input-dark text-sm">
             <option value="">Tous les statuts</option>
@@ -118,10 +143,30 @@ export default function OperateurIncidentsPage() {
             <option value="RESOLVED">Résolus</option>
             <option value="CLOSED">Fermés</option>
           </select>
+          {/* Filtre sévérité */}
+          <select value={severityFilter} onChange={e => { setSeverityFilter(e.target.value); setPage(0) }}
+            className="input-dark text-sm">
+            <option value="">Toutes les sévérités</option>
+            <option value="LOW">Faible</option>
+            <option value="MEDIUM">Moyen</option>
+            <option value="HIGH">Élevé</option>
+            <option value="CRITICAL">Critique</option>
+          </select>
+          {/* Filtre date */}
+          <div className="relative">
+            <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={e => { setDateFilter(e.target.value); setPage(0) }}
+              className="input-dark pl-9 text-sm w-44"
+              style={{ colorScheme: 'dark' }}
+            />
+          </div>
           {isLoading && <span className="text-xs text-slate-500">Chargement...</span>}
         </motion.div>
 
-        {isLoading ? <PageLoader /> : allIncidents.length === 0 ? (
+        {isLoading ? <PageLoader /> : filteredIncidents.length === 0 ? (
           <EmptyState title="Aucun incident" description="Aucun incident ne correspond aux filtres." />
         ) : (
           <>
@@ -142,11 +187,24 @@ export default function OperateurIncidentsPage() {
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${sev.color}`}>{sev.label}</span>
                             <StatusBadge status={inc.status} />
-                            {(inc as any).clientCode && (
+                            {/* Source: client ou chauffeur */}
+                            {(inc as any).source === 'CHAUFFEUR' && (inc as any).chauffeurId ? (
+                              <UserInfoButton
+                                userId={(inc as any).chauffeurId}
+                                label={(inc as any).chauffeurName ?? 'Chauffeur'}
+                                variant="chauffeur"
+                              />
+                            ) : (inc as any).clientId && !(inc as any).clientId.startsWith('chauffeur:') ? (
+                              <UserInfoButton
+                                userId={(inc as any).clientId}
+                                label={(inc as any).clientCode ?? 'Client'}
+                                variant="client"
+                              />
+                            ) : (inc as any).clientCode ? (
                               <span className="text-xs font-mono text-brand-400 bg-brand-600/10 px-2 py-0.5 rounded-full border border-brand-500/20">
                                 {(inc as any).clientCode}
                               </span>
-                            )}
+                            ) : null}
                             <span className="text-xs text-slate-600">#{inc.id.substring(0, 8)}</span>
                           </div>
                           <p className="text-sm text-slate-200 font-medium mb-1 truncate">{inc.description}</p>
@@ -189,7 +247,7 @@ export default function OperateurIncidentsPage() {
             </div>
 
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage}
-              totalElements={allIncidents.length} pageSize={PAGE_SIZE} />
+              totalElements={filteredIncidents.length} pageSize={PAGE_SIZE} />
           </>
         )}
       </div>

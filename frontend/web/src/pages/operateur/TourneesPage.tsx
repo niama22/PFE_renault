@@ -4,14 +4,13 @@ import { motion } from 'framer-motion'
 import {
   Truck, Send, CheckCircle2, XCircle,
   PlayCircle, RotateCcw, AlertCircle, Clock,
-  ChevronDown, ChevronUp, Archive, Activity,
+  ChevronDown, ChevronUp, Archive, Activity, Search, CalendarDays,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   getTournees,
   confirmPlanningOperateur,
   runOptimizationOperateur,
-  startDelivery,
 } from '@/api/operateur.api'
 import Header from '@/components/layout/Header'
 import StatusBadge from '@/components/shared/StatusBadge'
@@ -272,7 +271,6 @@ function ProposedTab() {
 function ActiveTab({ onReoptimized }: { onReoptimized: () => void }) {
   const qc = useQueryClient()
   const { setProposed } = usePlanningStore()
-  const [startTarget, setStartTarget] = useState<Tournee | null>(null)
   const [reoptimizingId, setReoptimizingId] = useState<string | null>(null)
 
   const { data: pending    = [], isLoading: l1 } = useQuery<Tournee[]>({
@@ -313,27 +311,25 @@ function ActiveTab({ onReoptimized }: { onReoptimized: () => void }) {
     onSettled: () => setReoptimizingId(null),
   })
 
-  const startMutation = useMutation({
-    mutationFn: (id: string) => startDelivery(id),
-    onSuccess: () => {
-      toast.success('Livraison démarrée')
-      qc.invalidateQueries({ queryKey: ['operateur-tournees'] })
-      setStartTarget(null)
-    },
-    onError: () => toast.error('Erreur'),
-  })
-
   const [activePage, setActivePage] = useState(0)
+  const [otSearch,    setOtSearch]    = useState('')
+  const [dateSearch,  setDateSearch]  = useState('')
   const ACTIVE_PAGE_SIZE = 3
 
   if (l1 || l2 || l3 || l4) return <PageLoader />
 
+  const filterT = (arr: any[]) => arr.filter(t => {
+    if (otSearch   && !t.tourneeNumber?.toLowerCase().includes(otSearch.toLowerCase())) return false
+    if (dateSearch && t.plannedDate?.split('T')[0] !== dateSearch) return false
+    return true
+  })
+
   // Sort: pending first, then rejected drafts, then validated, then in-progress
-  const sortedPending    = pending.map(t => ({ ...t, _group: 'pending' as const }))
-  const rejected         = drafts.filter(t => !!t.rejectionReason).map(t => ({ ...t, _group: 'rejected' as const }))
-  const plainDraft       = drafts.filter(t => !t.rejectionReason).map(t => ({ ...t, _group: 'draft' as const }))
-  const sortedValidated  = validated.map(t => ({ ...t, _group: 'validated' as const }))
-  const sortedInProgress = inProgress.map(t => ({ ...t, _group: 'inProgress' as const }))
+  const sortedPending    = filterT(pending).map(t => ({ ...t, _group: 'pending' as const }))
+  const rejected         = filterT(drafts.filter(t => !!t.rejectionReason)).map(t => ({ ...t, _group: 'rejected' as const }))
+  const plainDraft       = filterT(drafts.filter(t => !t.rejectionReason)).map(t => ({ ...t, _group: 'draft' as const }))
+  const sortedValidated  = filterT(validated).map(t => ({ ...t, _group: 'validated' as const }))
+  const sortedInProgress = filterT(inProgress).map(t => ({ ...t, _group: 'inProgress' as const }))
 
   const all = [...sortedPending, ...rejected, ...plainDraft, ...sortedValidated, ...sortedInProgress]
   const totalActivePages = Math.ceil(all.length / ACTIVE_PAGE_SIZE)
@@ -375,12 +371,10 @@ function ActiveTab({ onReoptimized }: { onReoptimized: () => void }) {
     }
     if (t._group === 'validated') {
       return (
-        <button
-          onClick={() => setStartTarget(t)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-emerald-600/15 text-emerald-400 hover:bg-emerald-600/25 border border-emerald-500/20 transition-colors whitespace-nowrap">
-          <PlayCircle className="w-3.5 h-3.5" />
-          Démarrer livraison
-        </button>
+        <div className="flex items-center gap-2 text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg whitespace-nowrap">
+          <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          En attente chauffeur
+        </div>
       )
     }
     if (t._group === 'inProgress') {
@@ -396,6 +390,39 @@ function ActiveTab({ onReoptimized }: { onReoptimized: () => void }) {
 
   return (
     <>
+      {/* Filter bar */}
+      <div className="flex items-center gap-3 flex-wrap mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <input
+            value={otSearch}
+            onChange={e => { setOtSearch(e.target.value); setActivePage(0) }}
+            placeholder="N° OT / tournée..."
+            className="input-dark pl-9 text-sm w-44"
+          />
+        </div>
+        <div className="relative">
+          <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <input
+            type="date"
+            value={dateSearch}
+            onChange={e => { setDateSearch(e.target.value); setActivePage(0) }}
+            className="input-dark pl-9 text-sm w-44"
+            style={{ colorScheme: 'dark' }}
+          />
+        </div>
+        {(otSearch || dateSearch) && (
+          <button
+            onClick={() => { setOtSearch(''); setDateSearch(''); setActivePage(0) }}
+            className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1">
+            <XCircle className="w-3.5 h-3.5" /> Réinitialiser
+          </button>
+        )}
+        {(otSearch || dateSearch) && (
+          <span className="text-xs text-slate-500">{all.length} résultat(s)</span>
+        )}
+      </div>
+
       {/* Group labels — rebuilt from current page slice */}
       {pgPending.length > 0 && (
         <div className="mb-2">
@@ -475,15 +502,6 @@ function ActiveTab({ onReoptimized }: { onReoptimized: () => void }) {
       <Pagination page={activePage} totalPages={totalActivePages} onPageChange={setActivePage}
         totalElements={all.length} pageSize={ACTIVE_PAGE_SIZE} />
 
-      <ConfirmDialog
-        open={!!startTarget}
-        onOpenChange={v => !v && setStartTarget(null)}
-        title="Démarrer la livraison"
-        description={`Marquer la tournée ${startTarget?.tourneeNumber ?? ''} comme EN COURS ?`}
-        confirmLabel="Démarrer"
-        onConfirm={() => startTarget && startMutation.mutate(startTarget.id)}
-        loading={startMutation.isPending}
-      />
     </>
   )
 }
@@ -492,6 +510,8 @@ function ActiveTab({ onReoptimized }: { onReoptimized: () => void }) {
 
 function HistoryTab() {
   const [histPage, setHistPage] = useState(0)
+  const [histOtSearch,   setHistOtSearch]   = useState('')
+  const [histDateSearch, setHistDateSearch] = useState('')
   const HIST_PAGE_SIZE = 3
 
   const { data: completed = [], isLoading } = useQuery<Tournee[]>({
@@ -501,6 +521,12 @@ function HistoryTab() {
 
   if (isLoading) return <PageLoader />
 
+  const filtered = completed.filter(t => {
+    if (histOtSearch   && !t.tourneeNumber?.toLowerCase().includes(histOtSearch.toLowerCase())) return false
+    if (histDateSearch && t.plannedDate?.split('T')[0] !== histDateSearch) return false
+    return true
+  })
+
   if (completed.length === 0) return (
     <EmptyState
       title="Aucun historique"
@@ -508,17 +534,49 @@ function HistoryTab() {
     />
   )
 
-  const totalHistPages = Math.ceil(completed.length / HIST_PAGE_SIZE)
-  const pagedCompleted = completed.slice(histPage * HIST_PAGE_SIZE, (histPage + 1) * HIST_PAGE_SIZE)
+  const totalHistPages = Math.ceil(filtered.length / HIST_PAGE_SIZE)
+  const pagedCompleted = filtered.slice(histPage * HIST_PAGE_SIZE, (histPage + 1) * HIST_PAGE_SIZE)
 
   return (
     <div className="space-y-4">
+      {/* Filter bar history */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <input
+            value={histOtSearch}
+            onChange={e => { setHistOtSearch(e.target.value); setHistPage(0) }}
+            placeholder="N° OT / tournée..."
+            className="input-dark pl-9 text-sm w-44"
+          />
+        </div>
+        <div className="relative">
+          <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500 pointer-events-none" />
+          <input
+            type="date"
+            value={histDateSearch}
+            onChange={e => { setHistDateSearch(e.target.value); setHistPage(0) }}
+            className="input-dark pl-9 text-sm w-44"
+            style={{ colorScheme: 'dark' }}
+          />
+        </div>
+        {(histOtSearch || histDateSearch) && (
+          <button
+            onClick={() => { setHistOtSearch(''); setHistDateSearch(''); setHistPage(0) }}
+            className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-1">
+            <XCircle className="w-3.5 h-3.5" /> Réinitialiser
+          </button>
+        )}
+      </div>
+
       {/* History header */}
       <div className="glass px-4 py-3 flex items-center gap-3 rounded-xl"
         style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.15)' }}>
         <Archive className="w-4 h-4 text-emerald-400 flex-shrink-0" />
         <div>
-          <p className="text-sm font-medium text-slate-200">{completed.length} tournée(s) terminée(s)</p>
+          <p className="text-sm font-medium text-slate-200">
+            {filtered.length} / {completed.length} tournée(s) terminée(s)
+          </p>
           <p className="text-xs text-slate-500">Archivées après livraison complète. Cliquez sur une tournée pour voir ses détails.</p>
         </div>
       </div>
