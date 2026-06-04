@@ -67,5 +67,24 @@ export const confirmPlanningOperateur = (proposed: ProposedTournee[], operatorNo
     operatorNotes,
   }).then(r => r.data.data)
 
-export const startDelivery = (id: string) =>
-  operateurApi.patch<ApiResponse<Tournee>>(`/tournees/${id}/start`).then(r => r.data.data)
+// Stats dashboard
+export const getOrderStats   = () => operateurApi.get<ApiResponse<Record<string,number>>>('/orders/stats').then(r => r.data.data ?? {})
+export const getTourneeStats = () => operateurApi.get<ApiResponse<Record<string,number>>>('/tournees/stats').then(r => r.data.data ?? {})
+export const getRecentOrders = () => operateurApi.get<ApiResponse<PageResult<Order>>>('/orders', { params: { page:0, size:6 } }).then(r => r.data.data?.content ?? [])
+
+// Cancellations
+export const getCancellations = () =>
+  operateurApi.get<ApiResponse<any[]>>('/cancellations').then(r => r.data.data ?? [])
+
+export const forwardCancellation = (id: string) =>
+  operateurApi.post<ApiResponse<any>>(`/cancellations/${id}/forward`).then(r => r.data.data)
+
+export const downloadCancellationDocument = async (id: string, orderNumber?: string) => {
+  const resp = await operateurApi.get(`/cancellations/${id}/document`, { responseType: 'blob' })
+  const url = URL.createObjectURL(new Blob([resp.data], { type: 'application/pdf' }))
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `annulation-${orderNumber ?? id}.pdf`
+  a.click()
+  URL.revokeObjectURL(url)
+}
