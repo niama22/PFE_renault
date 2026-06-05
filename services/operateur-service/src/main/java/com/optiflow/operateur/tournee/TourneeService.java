@@ -121,16 +121,6 @@ public class TourneeService {
         return saved;
     }
 
-    public Tournee startDelivery(UUID id) {
-        Tournee tournee = getTournee(id);
-        if (tournee.getStatus() != TourneeStatus.VALIDATED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                "Seules les tournées validées peuvent être démarrées");
-        }
-        tournee.setStatus(TourneeStatus.IN_PROGRESS);
-        return tourneeRepository.save(tournee);
-    }
-
     private List<Order> validateOrdersForTournee(List<UUID> orderIds) {
         if (orderIds == null || orderIds.isEmpty())
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Au moins une commande est requise");

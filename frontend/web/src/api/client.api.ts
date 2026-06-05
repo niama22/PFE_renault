@@ -13,6 +13,13 @@ export const createOrder = (data: {
 export const getActiveVehicleTypes = () =>
   adminApi.get<ApiResponse<VehicleType[]>>('/vehicle-types/active').then(r => r.data.data ?? [])
 
+export const requestOrderCancellation = (
+  orderId: string,
+  reason: string,
+  vehicleChassisIds?: string[],
+) => clientApi.post<ApiResponse<any>>(`/orders/${orderId}/cancel`, { reason, vehicleChassisIds })
+     .then(r => r.data)
+
 export const getMyIncidents = () =>
   clientApi.get<ApiResponse<ClientIncident[]>>('/incidents').then(r => r.data.data)
 

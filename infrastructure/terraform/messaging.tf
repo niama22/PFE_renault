@@ -33,14 +33,34 @@ resource "azurerm_eventhub" "topics" {
 
 locals {
   consumer_groups = {
-    "commandes.created"     = ["operateur-service-group", "client-service-group"]
-    "commandes.planned"     = ["client-service-group"]
-    "commandes.in_transit"  = ["client-service-group"]
-    "commandes.delivered"   = ["client-service-group"]
-    "tournee.validated"     = ["chauffeur-service-group", "responsable-service-group"]
-    "mission.acknowledged"  = ["responsable-service-group"]
-    "mission.started"       = ["operateur-service-group", "responsable-service-group"]
-    "mission.completed"     = ["operateur-service-group", "responsable-service-group"]
+    # Commandes lifecycle
+    "commandes.created"                        = ["operateur-service-group", "client-service-orders-group", "admin-service-group"]
+    "commandes.validated"                      = ["admin-service-group", "client-service-orders-group"]
+    "commandes.rejected"                       = ["admin-service-group", "client-service-orders-group"]
+    "commandes.planned"                        = ["client-service-orders-group"]
+    "commandes.in_transit"                     = ["client-service-orders-group"]
+    "commandes.delivered"                      = ["client-service-orders-group"]
+    "commandes.cancelled"                      = ["client-service-orders-group"]
+    # Annulations
+    "commandes.cancellation_requested"         = ["operateur-service-group"]
+    "commandes.cancellation_pending"           = ["responsable-service-group"]
+    "commandes.cancellation_approved"          = ["operateur-service-group"]
+    "commandes.cancellation_rejected"          = ["client-service-orders-group"]
+    "commandes.cancellation_rejected_by_respo" = ["operateur-service-group"]
+    # Tournées & Missions
+    "tournee.created"                          = ["admin-service-group"]
+    "tournee.validated"                        = ["chauffeur-service-group", "responsable-service-group"]
+    "mission.acknowledged"                     = ["responsable-service-group"]
+    "mission.started"                          = ["operateur-service-group", "responsable-service-group"]
+    "mission.completed"                        = ["operateur-service-group", "responsable-service-group"]
+    # Incidents
+    "incident.created"                         = ["operateur-service-group", "admin-service-group", "client-service-incidents-group"]
+    "incident.in_progress"                     = ["admin-service-group", "client-service-incidents-group"]
+    "incident.resolved"                        = ["admin-service-group", "client-service-incidents-group"]
+    "incident.closed"                          = ["admin-service-group", "client-service-incidents-group"]
+    # Messagerie chauffeur ↔ opérateur
+    "message.sent"                             = ["operateur-messages-group"]
+    "message.operator_reply"                   = ["chauffeur-messages-group"]
   }
 
   # Flatten pour for_each

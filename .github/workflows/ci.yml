@@ -118,6 +118,8 @@ jobs:
             context: services/chauffeur-service
           - service: frontend-web
             context: frontend/web
+          - service: kong
+            context: infrastructure/kong
 
     steps:
       - uses: actions/checkout@v4

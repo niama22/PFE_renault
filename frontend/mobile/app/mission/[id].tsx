@@ -103,10 +103,12 @@ export default function MissionDetailScreen() {
             <Ionicons name="chatbubble-outline" size={20} color={Colors.secondary} />
             <Text style={s.quickLabel}>Messages</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.quickBtn} onPress={() => router.push({ pathname: '/incident/new', params: { missionId: id } })}>
-            <Ionicons name="warning-outline" size={20} color={Colors.error} />
-            <Text style={[s.quickLabel, { color: Colors.error }]}>Incident</Text>
-          </TouchableOpacity>
+          {mission.status === 'IN_PROGRESS' && (
+            <TouchableOpacity style={s.quickBtn} onPress={() => router.push({ pathname: '/incident/new', params: { missionId: id } })}>
+              <Ionicons name="warning-outline" size={20} color={Colors.error} />
+              <Text style={[s.quickLabel, { color: Colors.error }]}>Incident</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 

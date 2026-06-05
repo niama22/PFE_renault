@@ -22,7 +22,7 @@ public class Incident {
     @Column(nullable = false)
     private UUID id;
 
-    @Column(name = "client_id", nullable = false)
+    @Column(name = "client_id")
     private String clientId;
 
     @Column(name = "client_code")
@@ -30,6 +30,19 @@ public class Incident {
 
     @Column(name = "order_id")
     private UUID orderId;
+
+    // Pour les incidents chauffeur
+    @Column(name = "chauffeur_id")
+    private String chauffeurId;
+
+    @Column(name = "chauffeur_name")
+    private String chauffeurName;
+
+    @Column(name = "mission_id")
+    private UUID missionId;
+
+    @Column(name = "source", length = 20)
+    private String source; // "CLIENT" ou "CHAUFFEUR"
 
     @Column(nullable = false, length = 2000)
     private String description;

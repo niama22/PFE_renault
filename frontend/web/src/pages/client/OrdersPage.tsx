@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import {
   Package, Plus, MapPin, UserCircle, Trash2,
   Upload, Download, FileSpreadsheet, CheckCircle2, XCircle,
-  Clock, History, RefreshCw,
+  Clock, History, RefreshCw, Eye, EyeOff, Ban, Calendar, ChevronDown, ChevronUp,
 } from 'lucide-react'
 import Pagination from '@/components/shared/Pagination'
 import { useForm, useFieldArray, Controller } from 'react-hook-form'
@@ -13,7 +13,7 @@ import { z } from 'zod'
 import { toast } from 'sonner'
 import { NavLink } from 'react-router-dom'
 import * as XLSX from 'xlsx'
-import { getMyOrders, createOrder } from '@/api/client.api'
+import { getMyOrders, createOrder, requestOrderCancellation } from '@/api/client.api'
 import { getActiveVehicleModels } from '@/api/responsable.api'
 import { useProfileStore } from '@/store/profile.store'
 import { useAuthStore } from '@/store/auth.store'
@@ -291,7 +291,7 @@ function CreateOrderModal({ vehicleModels, onClose }: { vehicleModels: VehicleMo
       postalCode: profile?.address?.postalCode ?? '',
       country:    profile?.address?.country    ?? 'Maroc',
       vehicles:   [{ vehicleModelId: '', quantity: 1 }],
-      requestedDeliveryDate: '',
+      requestedDeliveryDate: (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split('T')[0] })(),
     },
   })
 
@@ -448,13 +448,279 @@ function CreateOrderModal({ vehicleModels, onClose }: { vehicleModels: VehicleMo
   )
 }
 
+// ── Chassis masking ────────────────────────────────────────────────────────────
+
+function maskChassis(id: string): string {
+  if (!id || id.length <= 4) return id
+  return id.substring(0, 2) + '•••' + id.substring(id.length - 2)
+}
+
+// ── Cancel modal ──────────────────────────────────────────────────────────────
+
+const CANCEL_STATUSES = ['PENDING_VALIDATION', 'VALIDATED', 'PLANNED']
+
+function CancelOrderModal({ order, onClose }: { order: any; onClose: () => void }) {
+  const qc = useQueryClient()
+  const { user } = useAuthStore()
+  const vehicles: ChassisItem[] = order.vehicles ?? []
+  const [reason, setReason] = useState('')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [partialMode, setPartialMode] = useState(false)
+
+  const mutation = useMutation({
+    mutationFn: () => requestOrderCancellation(
+      order.id,
+      reason,
+      partialMode && selectedIds.length > 0 ? selectedIds : undefined,
+    ),
+    onSuccess: () => {
+      toast.success('Demande d\'annulation envoyée à l\'opérateur')
+      qc.invalidateQueries({ queryKey: ['client-orders', user?.keycloakId] })
+      onClose()
+    },
+    onError: () => toast.error('Erreur lors de la demande d\'annulation'),
+  })
+
+  function toggleVehicle(chassisId: string) {
+    setSelectedIds(prev =>
+      prev.includes(chassisId) ? prev.filter(id => id !== chassisId) : [...prev, chassisId]
+    )
+  }
+
+  const canSubmit = reason.trim().length >= 5 && (!partialMode || selectedIds.length > 0)
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="relative z-10 glass p-6 w-full max-w-lg rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]">
+
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-lg bg-red-600/10 border border-red-500/20 flex items-center justify-center">
+            <Ban className="w-4 h-4 text-red-400" />
+          </div>
+          <div>
+            <h2 className="text-slate-100 font-semibold text-base">Demande d'annulation</h2>
+            <p className="text-xs text-slate-500">
+              {order.orderNumber ?? `#${order.id?.substring(0, 8)}`}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {/* Mode : total ou partiel */}
+          {vehicles.length > 1 && (
+            <div>
+              <label className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-2 block">
+                Périmètre d'annulation
+              </label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setPartialMode(false); setSelectedIds([]) }}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    !partialMode ? 'bg-red-600/20 border-red-500/50 text-red-300' : 'bg-navy-800/40 border-navy-600/40 text-slate-400 hover:border-red-500/30'
+                  }`}>
+                  Commande entière ({vehicles.length} véhicules)
+                </button>
+                <button
+                  onClick={() => setPartialMode(true)}
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-all ${
+                    partialMode ? 'bg-red-600/20 border-red-500/50 text-red-300' : 'bg-navy-800/40 border-navy-600/40 text-slate-400 hover:border-red-500/30'
+                  }`}>
+                  Sélection partielle
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Vehicle selection */}
+          {partialMode && (
+            <div>
+              <label className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-2 block">
+                Véhicules à annuler <span className="text-red-400">*</span>
+              </label>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                {vehicles.map((v: any) => (
+                  <label key={v.chassisId}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
+                      selectedIds.includes(v.chassisId)
+                        ? 'bg-red-600/10 border-red-500/30'
+                        : 'bg-navy-800/40 border-navy-600/30 hover:border-navy-500/50'
+                    }`}>
+                    <input type="checkbox"
+                      checked={selectedIds.includes(v.chassisId)}
+                      onChange={() => toggleVehicle(v.chassisId)}
+                      className="w-3.5 h-3.5 accent-red-500" />
+                    <span className="font-mono text-xs text-slate-300">{maskChassis(v.chassisId)}</span>
+                    <span className="text-xs text-slate-500 ml-auto">{v.vehicleModelLabel ?? '—'}</span>
+                  </label>
+                ))}
+              </div>
+              {partialMode && selectedIds.length === 0 && (
+                <p className="text-xs text-red-400 mt-1">Sélectionnez au moins un véhicule</p>
+              )}
+            </div>
+          )}
+
+          {/* Reason */}
+          <div>
+            <label className="text-xs text-slate-400 font-medium uppercase tracking-wider mb-1.5 block">
+              Motif d'annulation <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={e => setReason(e.target.value)}
+              rows={3}
+              className="input-dark w-full resize-none"
+              placeholder="Précisez la raison de votre demande d'annulation (minimum 5 caractères)…"
+            />
+            {reason.length > 0 && reason.trim().length < 5 && (
+              <p className="text-xs text-red-400 mt-1">Motif trop court (min. 5 caractères)</p>
+            )}
+          </div>
+
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3 text-xs text-amber-300">
+            La demande sera transmise à l'opérateur puis validée par le responsable.
+            Vous serez notifié du résultat.
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-3 pt-4 mt-2 border-t border-navy-700/50">
+          <button onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm text-slate-400 hover:text-slate-200 hover:bg-white/5 transition-colors">
+            Fermer
+          </button>
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={!canSubmit || mutation.isPending}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50">
+            {mutation.isPending ? 'Envoi…' : 'Envoyer la demande'}
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
+// ── Order detail modal ────────────────────────────────────────────────────────
+
+function OrderDetailModal({ order, onClose, onCancel }: { order: any; onClose: () => void; onCancel: () => void }) {
+  const [showChassis, setShowChassis] = useState(false)
+  const vehicles: ChassisItem[] = order.vehicles ?? []
+  const canCancel = CANCEL_STATUSES.includes(order.status)
+
+  const Row = ({ label, value }: { label: string; value: string }) => (
+    <div className="flex justify-between items-start py-2 border-b border-white/10 last:border-0">
+      <span className="text-white/60 text-xs font-medium w-40 flex-shrink-0">{label}</span>
+      <span className="text-white text-sm font-semibold text-right">{value}</span>
+    </div>
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+        className="relative z-10 w-full max-w-xl rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]"
+        style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)' }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-white/10">
+          <div>
+            <p className="text-white font-bold text-lg">{order.orderNumber ?? `#${order.id?.substring(0, 8)}`}</p>
+            <p className="text-white/50 text-xs mt-0.5">{formatDateTime(order.createdAt)}</p>
+          </div>
+          <StatusBadge status={order.status} />
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Infos principales */}
+          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '12px 16px' }}>
+            <Row label="Numéro commande"     value={order.orderNumber ?? '—'} />
+            <Row label="Date livraison"       value={order.requestedDeliveryDate?.split('T')[0] ?? '—'} />
+            <Row label="Arrivée estimée"      value={order.estimatedArrivalDate?.split('T')[0] ?? '—'} />
+            <Row label="Adresse de livraison" value={formatAddress(order.deliveryAddress)} />
+          </div>
+
+          {/* Note opérateur */}
+          {order.operatorNotes && (
+            <div style={{ background: 'rgba(99,102,241,0.2)', borderRadius: 12, padding: '12px 16px', border: '1px solid rgba(99,102,241,0.4)' }}>
+              <p className="text-white/60 text-xs font-medium mb-1">Note opérateur</p>
+              <p className="text-white text-sm">{order.operatorNotes}</p>
+            </div>
+          )}
+
+          {/* Motif rejet/annulation */}
+          {order.rejectionReason && (
+            <div style={{ background: 'rgba(239,68,68,0.2)', borderRadius: 12, padding: '12px 16px', border: '1px solid rgba(239,68,68,0.4)' }}>
+              <p className="text-white/60 text-xs font-medium mb-1">Motif</p>
+              <p className="text-white text-sm">{order.rejectionReason}</p>
+            </div>
+          )}
+
+          {/* Véhicules */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-white font-semibold text-sm">Véhicules ({vehicles.length})</p>
+              <button onClick={() => setShowChassis(v => !v)}
+                className="flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors">
+                {showChassis ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                {showChassis ? 'Masquer' : 'Révéler châssis'}
+              </button>
+            </div>
+            <div className="space-y-1 max-h-52 overflow-y-auto">
+              {vehicles.map((v: any, i: number) => (
+                <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg"
+                  style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <span className="font-mono text-sm text-white font-semibold">
+                    {showChassis ? v.chassisId : maskChassis(v.chassisId)}
+                  </span>
+                  <span className="text-white/70 text-xs">{v.vehicleModelLabel ?? '—'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-between gap-3 p-5 border-t border-white/10">
+          {canCancel ? (
+            <button onClick={() => { onClose(); onCancel() }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+              style={{ background: 'rgba(239,68,68,0.25)', border: '1px solid rgba(239,68,68,0.5)' }}>
+              <Ban className="w-3.5 h-3.5" />
+              Demander annulation
+            </button>
+          ) : <div />}
+          <button onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            Fermer
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
 // ── Progress timeline ─────────────────────────────────────────────────────────
 
 const STATUS_STEPS = ['PENDING_VALIDATION', 'VALIDATED', 'PLANNED', 'IN_TRANSIT', 'DELIVERED']
+const CANCELLATION_STATUSES = ['CANCELLATION_REQUESTED', 'CANCELLATION_PENDING', 'CANCELLED', 'CANCELLATION_REJECTED']
 
 function OrderTimeline({ status }: { status: string }) {
   if (status === 'REJECTED') {
     return <span className="text-xs text-red-400 font-medium flex items-center gap-1"><XCircle className="w-3 h-3" /> Rejetée</span>
+  }
+  if (CANCELLATION_STATUSES.includes(status)) {
+    const label: Record<string, string> = {
+      CANCELLATION_REQUESTED: 'Annulation demandée',
+      CANCELLATION_PENDING:   'En attente responsable',
+      CANCELLED:              'Annulée',
+      CANCELLATION_REJECTED:  'Annulation refusée',
+    }
+    const color = status === 'CANCELLED' ? 'text-red-400' : status === 'CANCELLATION_REJECTED' ? 'text-orange-400' : 'text-amber-400'
+    return <span className={`text-xs font-medium flex items-center gap-1 mt-1 ${color}`}><Ban className="w-3 h-3" /> {label[status]}</span>
   }
   const current = STATUS_STEPS.indexOf(status)
   return (
@@ -469,9 +735,13 @@ function OrderTimeline({ status }: { status: string }) {
 
 // ── Order card ────────────────────────────────────────────────────────────────
 
-function OrderCard({ order, index }: { order: any; index: number }) {
+function OrderCard({ order, index, onDetail, onCancel }: {
+  order: any; index: number
+  onDetail: () => void; onCancel: () => void
+}) {
   const vehicles: ChassisItem[] = order.vehicles ?? []
-  const city = extractCity(order.deliveryAddress)
+  const [expanded, setExpanded] = useState(false)
+  const canCancel = CANCEL_STATUSES.includes(order.status)
 
   return (
     <motion.div
@@ -492,30 +762,52 @@ function OrderCard({ order, index }: { order: any; index: number }) {
               <MapPin className="w-3 h-3 text-slate-500 flex-shrink-0" />
               <span className="truncate">{formatAddress(order.deliveryAddress)}</span>
             </div>
+            {/* Chassis masqués */}
             {vehicles.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-1">
-                {vehicles.slice(0, 4).map((v, i) => (
+                {vehicles.slice(0, expanded ? vehicles.length : 3).map((v: any, i: number) => (
                   <span key={i}
                     className="text-[10px] font-mono px-2 py-0.5 rounded bg-brand-500/10 text-brand-400 border border-brand-500/20"
-                    title={v.vehicleModelLabel}>
-                    {v.chassisId}
+                    title="ID masqué — cliquez sur Détails pour voir">
+                    {maskChassis(v.chassisId)}
                   </span>
                 ))}
-                {vehicles.length > 4 && (
-                  <span className="text-[10px] text-slate-500">+{vehicles.length - 4} autre(s)</span>
+                {!expanded && vehicles.length > 3 && (
+                  <button onClick={() => setExpanded(true)}
+                    className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-0.5">
+                    +{vehicles.length - 3} <ChevronDown className="w-2.5 h-2.5" />
+                  </button>
+                )}
+                {expanded && vehicles.length > 3 && (
+                  <button onClick={() => setExpanded(false)}
+                    className="text-[10px] text-slate-500 hover:text-slate-300 transition-colors flex items-center gap-0.5">
+                    Réduire <ChevronUp className="w-2.5 h-2.5" />
+                  </button>
                 )}
               </div>
             )}
-            {vehicles.length > 0 && (
-              <p className="text-xs text-slate-500 mb-0.5">
-                {vehicles.length} châssis · {[...new Set(vehicles.map(v => v.vehicleModelLabel).filter(Boolean))].join(', ')}
-              </p>
-            )}
+            <p className="text-xs text-slate-500 mb-0.5">
+              {vehicles.length} châssis · {[...new Set(vehicles.map((v: any) => v.vehicleModelLabel).filter(Boolean))].join(', ')}
+            </p>
             <p className="text-xs text-slate-600">{formatDateTime(order.createdAt)}</p>
             <OrderTimeline status={order.status} />
           </div>
         </div>
-        <StatusBadge status={order.status} />
+        <div className="flex flex-col items-end gap-2">
+          <StatusBadge status={order.status} />
+          <div className="flex items-center gap-1.5">
+            <button onClick={onDetail}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-slate-400 hover:text-slate-200 hover:bg-white/5 border border-navy-600/40 transition-colors">
+              <Eye className="w-3 h-3" /> Détails
+            </button>
+            {canCancel && (
+              <button onClick={onCancel}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] text-red-400 hover:bg-red-500/10 border border-red-500/20 transition-colors">
+                <Ban className="w-3 h-3" /> Annuler
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </motion.div>
   )
@@ -523,8 +815,9 @@ function OrderCard({ order, index }: { order: any; index: number }) {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-const ACTIVE_STATUSES  = ['PENDING_VALIDATION', 'VALIDATED', 'PLANNED', 'IN_TRANSIT']
-const HISTORY_STATUSES = ['DELIVERED', 'REJECTED']
+const ACTIVE_STATUSES  = ['PENDING_VALIDATION', 'VALIDATED', 'PLANNED', 'IN_TRANSIT',
+                          'CANCELLATION_REQUESTED', 'CANCELLATION_PENDING']
+const HISTORY_STATUSES = ['DELIVERED', 'REJECTED', 'CANCELLED', 'CANCELLATION_REJECTED']
 
 export default function ClientOrdersPage() {
   const { user } = useAuthStore()
@@ -532,8 +825,11 @@ export default function ClientOrdersPage() {
 
   const [showCreate, setShowCreate] = useState(false)
   const [showImport, setShowImport] = useState(false)
-  const [tab, setTab] = useState<'active' | 'history'>('active')
-  const [page, setPage] = useState(0)
+  const [tab, setTab]           = useState<'active' | 'history'>('active')
+  const [page, setPage]         = useState(0)
+  const [dateFilter, setDateFilter] = useState('')
+  const [detailOrder, setDetailOrder]   = useState<any | null>(null)
+  const [cancelOrder,  setCancelOrder]  = useState<any | null>(null)
 
   const { data: vehicleModels = [] } = useQuery<VehicleModel[]>({
     queryKey: ['vehicle-models-active'],
@@ -548,8 +844,16 @@ export default function ClientOrdersPage() {
     staleTime: 0,
   })
 
-  const activeOrders  = orders.filter(o => ACTIVE_STATUSES.includes(o.status))
-  const historyOrders = orders.filter(o => HISTORY_STATUSES.includes(o.status))
+  // Unique dates from all orders (for dropdown)
+  const allDates = [...new Set(
+    orders.map(o => o.createdAt?.split('T')[0]).filter(Boolean)
+  )].sort((a, b) => b.localeCompare(a)) as string[]
+
+  const filterByDate = (list: any[]) =>
+    dateFilter ? list.filter(o => o.createdAt?.startsWith(dateFilter)) : list
+
+  const activeOrders  = filterByDate(orders.filter(o => ACTIVE_STATUSES.includes(o.status)))
+  const historyOrders = filterByDate(orders.filter(o => HISTORY_STATUSES.includes(o.status)))
   const allDisplayed  = tab === 'active' ? activeOrders : historyOrders
   const totalPages    = Math.ceil(allDisplayed.length / PAGE_SIZE)
   const displayed     = allDisplayed.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
@@ -592,6 +896,26 @@ export default function ClientOrdersPage() {
                 </span>
               )}
             </button>
+          </div>
+
+          {/* Date filter — liste des dates existantes */}
+          <div className="flex items-center gap-2">
+            <Calendar className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+            <select
+              value={dateFilter}
+              onChange={e => { setDateFilter(e.target.value); setPage(0) }}
+              className="input-dark text-xs py-1.5 px-2 min-w-[160px]">
+              <option value="">Toutes les dates</option>
+              {allDates.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+            {dateFilter && (
+              <button onClick={() => { setDateFilter(''); setPage(0) }}
+                className="text-slate-500 hover:text-slate-300 transition-colors">
+                <XCircle className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
           {/* Actions */}
@@ -639,7 +963,13 @@ export default function ClientOrdersPage() {
           <>
             <div className="space-y-3">
               {displayed.map((order: any, i: number) => (
-                <OrderCard key={order.id} order={order} index={i} />
+                <OrderCard
+                  key={order.id}
+                  order={order}
+                  index={i}
+                  onDetail={() => setDetailOrder(order)}
+                  onCancel={() => setCancelOrder(order)}
+                />
               ))}
             </div>
             <div className="glass mt-2 rounded-xl">
@@ -660,6 +990,16 @@ export default function ClientOrdersPage() {
       )}
       {showImport && (
         <ImportModal vehicleModels={vehicleModels} onClose={() => setShowImport(false)} />
+      )}
+      {detailOrder && (
+        <OrderDetailModal
+          order={detailOrder}
+          onClose={() => setDetailOrder(null)}
+          onCancel={() => { setDetailOrder(null); setCancelOrder(detailOrder) }}
+        />
+      )}
+      {cancelOrder && (
+        <CancelOrderModal order={cancelOrder} onClose={() => setCancelOrder(null)} />
       )}
     </div>
   )

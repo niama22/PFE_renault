@@ -62,6 +62,8 @@ jobs:
             context: services/chauffeur-service
           - service: frontend-web
             context: frontend/web
+          - service: kong
+            context: infrastructure/kong
 
     steps:
       - uses: actions/checkout@v4
@@ -106,23 +108,26 @@ jobs:
       - name: Deploy — backend services
         run: |
           services=(
-            "admin-service:8083"
-            "operateur-service:8081"
-            "responsable-service:8084"
-            "client-service:3001"
-            "chauffeur-service:3002"
+            "admin-service"
+            "operateur-service"
+            "responsable-service"
+            "client-service"
+            "chauffeur-service"
           )
-          for entry in "${services[@]}"; do
-            svc="${entry%%:*}"
-            port="${entry##*:}"
+          for svc in "${services[@]}"; do
             echo "→ Deploying optiflow-$svc ..."
             az containerapp update \
               --name "optiflow-$svc" \
               --resource-group "$RESOURCE_GROUP" \
-              --image "$REGISTRY/optiflow-$svc:$IMAGE_TAG" \
-              --set-env-vars \
-                "IMAGE_TAG=$IMAGE_TAG"
+              --image "$REGISTRY/optiflow-$svc:$IMAGE_TAG"
           done
+
+      - name: Deploy — Kong gateway
+        run: |
+          az containerapp update \
+            --name "optiflow-kong" \
+            --resource-group "$RESOURCE_GROUP" \
+            --image "$REGISTRY/optiflow-kong:$IMAGE_TAG"
 
       - name: Deploy — frontend
         run: |
@@ -152,25 +157,33 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Get frontend URL
-        id: get-url
+      - name: Get service URLs
+        id: get-urls
         run: |
-          URL=$(az containerapp show \
+          FRONTEND=$(az containerapp show \
             --name "optiflow-frontend-web" \
             --resource-group "$RESOURCE_GROUP" \
             --query "properties.configuration.ingress.fqdn" \
             --output tsv)
-          echo "url=https://$URL" >> $GITHUB_OUTPUT
+          KONG=$(az containerapp show \
+            --name "optiflow-kong" \
+            --resource-group "$RESOURCE_GROUP" \
+            --query "properties.configuration.ingress.fqdn" \
+            --output tsv)
+          echo "frontend_url=https://$FRONTEND" >> $GITHUB_OUTPUT
+          echo "kong_url=https://$KONG"         >> $GITHUB_OUTPUT
 
       - name: Check frontend is up
         run: |
-          echo "Testing ${{ steps.get-url.outputs.url }} ..."
-          curl --fail --silent --max-time 30 "${{ steps.get-url.outputs.url }}" > /dev/null
+          echo "Testing ${{ steps.get-urls.outputs.frontend_url }} ..."
+          curl --fail --silent --max-time 30 "${{ steps.get-urls.outputs.frontend_url }}" > /dev/null
           echo "Frontend OK"
 
-      - name: Check Keycloak auth endpoint
+      - name: Check Kong gateway health
         run: |
+          echo "Testing ${{ steps.get-urls.outputs.kong_url }} ..."
           curl --fail --silent --max-time 30 \
-            "${{ steps.get-url.outputs.url }}/auth/realms/optiflow/.well-known/openid-configuration" \
-            > /dev/null
-          echo "Keycloak OK"
+            "${{ steps.get-urls.outputs.kong_url }}/health" > /dev/null \
+            || curl --fail --silent --max-time 30 \
+            "${{ steps.get-urls.outputs.kong_url }}/" > /dev/null
+          echo "Kong OK"

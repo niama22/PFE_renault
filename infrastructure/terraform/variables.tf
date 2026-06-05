@@ -103,14 +103,34 @@ variable "kafka_topics" {
   description = "Topics Kafka (= Event Hubs) à créer"
   type        = list(string)
   default = [
+    # Cycle de vie des commandes
     "commandes.created",
+    "commandes.validated",
+    "commandes.rejected",
     "commandes.planned",
     "commandes.in_transit",
     "commandes.delivered",
+    "commandes.cancelled",
+    # Annulations
+    "commandes.cancellation_requested",
+    "commandes.cancellation_pending",
+    "commandes.cancellation_approved",
+    "commandes.cancellation_rejected",
+    "commandes.cancellation_rejected_by_respo",
+    # Tournées & Missions
+    "tournee.created",
     "tournee.validated",
     "mission.acknowledged",
     "mission.started",
     "mission.completed",
+    # Incidents
+    "incident.created",
+    "incident.in_progress",
+    "incident.resolved",
+    "incident.closed",
+    # Messagerie chauffeur ↔ opérateur
+    "message.sent",
+    "message.operator_reply",
   ]
 }
 

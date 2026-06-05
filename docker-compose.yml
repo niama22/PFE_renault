@@ -162,7 +162,21 @@ services:
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic responsable.validated  --partitions 3 --replication-factor 1 &&
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic incident.created       --partitions 3 --replication-factor 1 &&
         kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic incident.resolved      --partitions 3 --replication-factor 1 &&
-        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic notification.send      --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic incident.in_progress  --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic incident.closed       --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic mission.acknowledged  --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.planned                 --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.in_transit              --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.delivered               --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.cancellation_requested  --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.cancellation_pending    --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.cancelled               --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.cancellation_rejected         --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.cancellation_approved         --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic commandes.cancellation_rejected_by_respo --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic notification.send          --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic message.sent               --partitions 3 --replication-factor 1 &&
+        kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --topic message.operator_reply     --partitions 3 --replication-factor 1 &&
         echo '=== Topics created ===' &&
         kafka-topics --list --bootstrap-server kafka:29092
       "

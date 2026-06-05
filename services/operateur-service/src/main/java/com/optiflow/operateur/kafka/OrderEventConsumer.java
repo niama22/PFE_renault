@@ -2,6 +2,10 @@ package com.optiflow.operateur.kafka;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.optiflow.operateur.cancellation.CancellationRepository;
+import com.optiflow.operateur.cancellation.CancellationRequest;
+import com.optiflow.operateur.cancellation.CancellationService;
+import com.optiflow.operateur.cancellation.CancellationStatus;
 import com.optiflow.operateur.incident.Incident;
 import com.optiflow.operateur.incident.IncidentRepository;
 import com.optiflow.operateur.incident.IncidentStatus;
@@ -30,6 +34,8 @@ public class OrderEventConsumer {
     private final OrderRepository orderRepository;
     private final IncidentRepository incidentRepository;
     private final TourneeRepository tourneeRepository;
+    private final CancellationRepository cancellationRepository;
+    private final CancellationService cancellationService;
     private final EventProducer eventProducer;
     private final ObjectMapper objectMapper;
 
@@ -84,21 +90,47 @@ public class OrderEventConsumer {
                 return;
             }
 
+            boolean isChauffeurIncident = node.has("chauffeurId") && !node.get("chauffeurId").isNull();
+
             Incident incident = Incident.builder()
                 .id(incidentId)
-                .clientId(node.get("clientId").asText())
-                .clientCode(node.has("clientCode") ? node.get("clientCode").asText() : null)
-                .orderId(node.has("orderId") && !node.get("orderId").isNull()
-                    ? UUID.fromString(node.get("orderId").asText()) : null)
                 .description(node.get("description").asText())
                 .severity(node.has("severity") ? node.get("severity").asText() : "MEDIUM")
                 .status(IncidentStatus.OPEN)
                 .build();
 
+            if (isChauffeurIncident) {
+                incident.setChauffeurId(node.get("chauffeurId").asText());
+                incident.setChauffeurName(node.has("chauffeurName") ? node.get("chauffeurName").asText() : null);
+                incident.setMissionId(node.has("missionId") && !node.get("missionId").isNull()
+                    ? UUID.fromString(node.get("missionId").asText()) : null);
+                incident.setSource("CHAUFFEUR");
+                incident.setClientId("chauffeur:" + node.get("chauffeurId").asText());
+            } else {
+                incident.setClientId(node.get("clientId").asText());
+                incident.setClientCode(node.has("clientCode") ? node.get("clientCode").asText() : null);
+                incident.setOrderId(node.has("orderId") && !node.get("orderId").isNull()
+                    ? UUID.fromString(node.get("orderId").asText()) : null);
+                incident.setSource("CLIENT");
+            }
+
             incidentRepository.save(incident);
-            log.info("Incident received from Kafka: {}", incidentId);
+            log.info("Incident {} ({}) received from Kafka", incidentId, incident.getSource());
         } catch (Exception e) {
             log.error("Error processing incident.created: {}", e.getMessage());
+        }
+    }
+
+    @KafkaListener(topics = "commandes.cancellation_requested", groupId = "operateur-service-group")
+    @Transactional
+    public void onCancellationRequested(String message) {
+        try {
+            JsonNode node = objectMapper.readTree(message);
+            java.util.Map<String, Object> data = objectMapper.convertValue(node,
+                objectMapper.getTypeFactory().constructMapType(java.util.HashMap.class, String.class, Object.class));
+            cancellationService.createFromEvent(data);
+        } catch (Exception e) {
+            log.error("Error processing commandes.cancellation_requested: {}", e.getMessage());
         }
     }
 
@@ -155,6 +187,66 @@ public class OrderEventConsumer {
             log.info("Mission completed for tournée {}: {} order(s) → DELIVERED", tourneeNumber, orders.size());
         } catch (Exception e) {
             log.error("Error processing mission.completed: {}", e.getMessage());
+        }
+    }
+
+    // Responsable approved cancellation → update order + store document
+    @KafkaListener(topics = "commandes.cancellation_approved", groupId = "operateur-service-group")
+    @Transactional
+    public void onCancellationApproved(String message) {
+        try {
+            JsonNode node = objectMapper.readTree(message);
+            UUID cancellationId = UUID.fromString(node.get("cancellationId").asText());
+            UUID orderId = UUID.fromString(node.get("orderId").asText());
+            String responsableId = node.has("responsableId") ? node.get("responsableId").asText() : null;
+            byte[] documentData = node.has("documentData")
+                ? java.util.Base64.getDecoder().decode(node.get("documentData").asText()) : null;
+
+            cancellationRepository.findById(cancellationId).ifPresent(req -> {
+                req.setStatus(CancellationStatus.APPROVED);
+                req.setResponsableId(responsableId);
+                req.setDocumentData(documentData);
+                req.setDocumentGeneratedAt(java.time.LocalDateTime.now());
+                cancellationRepository.save(req);
+            });
+
+            orderRepository.findById(orderId).ifPresent(order -> {
+                order.setStatus(OrderStatus.CANCELLED);
+                orderRepository.save(order);
+            });
+
+            eventProducer.publishOrderCancelled(orderId.toString());
+            log.info("Order {} CANCELLED by responsable", orderId);
+        } catch (Exception e) {
+            log.error("Error processing cancellation_approved: {}", e.getMessage());
+        }
+    }
+
+    // Responsable rejected cancellation → revert order status
+    @KafkaListener(topics = "commandes.cancellation_rejected_by_respo", groupId = "operateur-service-group")
+    @Transactional
+    public void onCancellationRejectedByRespo(String message) {
+        try {
+            JsonNode node = objectMapper.readTree(message);
+            UUID cancellationId = UUID.fromString(node.get("cancellationId").asText());
+            UUID orderId = UUID.fromString(node.get("orderId").asText());
+            String reason = node.has("reason") ? node.get("reason").asText() : null;
+
+            cancellationRepository.findById(cancellationId).ifPresent(req -> {
+                req.setStatus(CancellationStatus.REJECTED);
+                req.setRejectionReason(reason);
+                cancellationRepository.save(req);
+            });
+
+            orderRepository.findById(orderId).ifPresent(order -> {
+                order.setStatus(OrderStatus.CANCELLATION_REJECTED);
+                orderRepository.save(order);
+            });
+
+            eventProducer.publishOrderCancellationRejected(orderId.toString());
+            log.info("Cancellation for order {} rejected by responsable: {}", orderId, reason);
+        } catch (Exception e) {
+            log.error("Error processing cancellation_rejected_by_respo: {}", e.getMessage());
         }
     }
 }

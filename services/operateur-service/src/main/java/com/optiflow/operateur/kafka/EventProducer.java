@@ -91,6 +91,41 @@ public class EventProducer {
         publish("commandes.delivered", event);
     }
 
+    public void publishCancellationPending(com.optiflow.operateur.cancellation.CancellationRequest req) {
+        Map<String, Object> event = new HashMap<>();
+        event.put("cancellationId", req.getId().toString());
+        event.put("orderId", req.getOrderId().toString());
+        event.put("orderNumber", req.getOrderNumber());
+        event.put("clientId", req.getClientId());
+        event.put("clientCode", req.getClientCode());
+        event.put("clientName", req.getClientName());
+        event.put("clientCompany", req.getClientCompany());
+        event.put("deliveryAddressJson", req.getDeliveryAddressJson());
+        event.put("allVehiclesJson", req.getAllVehiclesJson());
+        event.put("requestedVehiclesJson", req.getRequestedVehiclesJson());
+        event.put("reason", req.getReason());
+        event.put("operateurId", req.getOperateurId());
+        publish("commandes.cancellation_pending", event);
+    }
+
+    public void publishOrderCancellationRequested(String orderId) {
+        Map<String, Object> event = new HashMap<>();
+        event.put("orderId", orderId);
+        publish("commandes.cancellation_requested", event);
+    }
+
+    public void publishOrderCancelled(String orderId) {
+        Map<String, Object> event = new HashMap<>();
+        event.put("orderId", orderId);
+        publish("commandes.cancelled", event);
+    }
+
+    public void publishOrderCancellationRejected(String orderId) {
+        Map<String, Object> event = new HashMap<>();
+        event.put("orderId", orderId);
+        publish("commandes.cancellation_rejected", event);
+    }
+
     private void publish(String topic, Object payload) {
         try {
             String json = objectMapper.writeValueAsString(payload);

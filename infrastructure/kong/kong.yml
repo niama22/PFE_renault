@@ -119,6 +119,13 @@ services:
     routes:
       - name: chauffeur-api
         paths:
+          - /api/v1/chauffeur
+        strip_path: false
+        protocols:
+          - http
+          - https
+      - name: chauffeur-api-plural
+        paths:
           - /api/v1/chauffeurs
         strip_path: false
         protocols:

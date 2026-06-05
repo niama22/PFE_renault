@@ -89,8 +89,9 @@ export class IncidentsService implements OnModuleInit {
 
     await this.kafkaService.publish('incident.created', {
       incidentId: saved.id,
-      clientId: client.id,
+      clientId: user.keycloakId,        // Keycloak UUID pour lookup admin
       clientCode: client.clientCode,
+      clientName: `${client.firstName ?? ''} ${client.lastName ?? ''}`.trim(),
       orderId: saved.orderId,
       description: saved.description,
       severity: saved.severity,

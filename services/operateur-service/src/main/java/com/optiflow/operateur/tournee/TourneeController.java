@@ -78,11 +78,4 @@ public class TourneeController {
             tourneeService.submitForValidation(id)));
     }
 
-    @PatchMapping("/{id}/start")
-    @PreAuthorize("hasRole('OPERATEUR')")
-    @Operation(summary = "Démarrer la livraison d'une tournée validée")
-    public ResponseEntity<ApiResponse<Tournee>> start(@PathVariable UUID id) {
-        return ResponseEntity.ok(ApiResponse.ok("Livraison démarrée",
-            tourneeService.startDelivery(id)));
-    }
 }

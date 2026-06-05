@@ -83,25 +83,37 @@ public class TourneeService {
         tournee.setValidatedAt(LocalDateTime.now());
         Tournee saved = tourneeRepository.save(tournee);
 
-        // Update linked orders to IN_PROGRESS
-        updateOrderStatuses(saved.getOrderIdsJson(), "IN_PROGRESS");
+        // Orders → PLANNED in operateur_db (shared DB)
+        List<String> orderIds = updateOrderStatuses(saved.getOrderIdsJson(), "PLANNED");
 
         try {
-            Map<String, Object> event = new HashMap<>();
-            event.put("tourneeId", saved.getId().toString());
-            event.put("tourneeNumber", saved.getTourneeNumber());
-            event.put("chauffeurId", saved.getChauffeurId());
-            event.put("chauffeurName", saved.getChauffeurName());
-            event.put("plannedDate", saved.getPlannedDate() != null ? saved.getPlannedDate().toString() : null);
-            event.put("orderIdsJson", saved.getOrderIdsJson());
-            event.put("operatorNotes", saved.getOperatorNotes());
-            event.put("responsableId", saved.getResponsableId());
-            String json = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send("tournee.validated", saved.getId().toString(), json);
+            // Notifier chauffeur-service → création mission
+            Map<String, Object> tourneeEvent = new HashMap<>();
+            tourneeEvent.put("tourneeId", saved.getId().toString());
+            tourneeEvent.put("tourneeNumber", saved.getTourneeNumber());
+            tourneeEvent.put("chauffeurId", saved.getChauffeurId());
+            tourneeEvent.put("chauffeurName", saved.getChauffeurName());
+            tourneeEvent.put("plannedDate", saved.getPlannedDate() != null ? saved.getPlannedDate().toString() : null);
+            tourneeEvent.put("orderIdsJson", saved.getOrderIdsJson());
+            tourneeEvent.put("operatorNotes", saved.getOperatorNotes());
+            tourneeEvent.put("responsableId", saved.getResponsableId());
+            kafkaTemplate.send("tournee.validated", saved.getId().toString(),
+                objectMapper.writeValueAsString(tourneeEvent));
+
+            // Notifier client-service → commandes.planned pour chaque commande
+            for (String orderId : orderIds) {
+                Map<String, Object> orderEvent = new HashMap<>();
+                orderEvent.put("orderId", orderId);
+                orderEvent.put("tourneeNumber", saved.getTourneeNumber());
+                orderEvent.put("plannedDate", saved.getPlannedDate() != null ? saved.getPlannedDate().toString() : null);
+                kafkaTemplate.send("commandes.planned", orderId,
+                    objectMapper.writeValueAsString(orderEvent));
+            }
+            log.info("Tournée {} validée: {} commande(s) → PLANNED, chauffeur {} notifié",
+                saved.getTourneeNumber(), orderIds.size(), saved.getChauffeurId());
         } catch (Exception e) {
-            log.warn("Kafka publish failed for tournee.validated: {}", e.getMessage());
+            log.warn("Kafka publish failed after tournee validation: {}", e.getMessage());
         }
-        log.info("Tournée {} validée par {}", saved.getTourneeNumber(), responsableId);
         return saved;
     }
 
@@ -116,7 +128,7 @@ public class TourneeService {
         tournee.setResponsableId(responsableId);
         Tournee saved = tourneeRepository.save(tournee);
 
-        // Revert orders back to VALIDATED so they can be re-planned
+        // Remettre les commandes à VALIDATED pour être re-planifiées
         updateOrderStatuses(saved.getOrderIdsJson(), "VALIDATED");
         // Also clear tournee_id link so optimizer can pick them up again
         clearTourneeIdForOrders(saved.getOrderIdsJson());
@@ -140,18 +152,20 @@ public class TourneeService {
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void updateOrderStatuses(String orderIdsJson, String newStatus) {
-        if (orderIdsJson == null || orderIdsJson.isBlank()) return;
+    public List<String> updateOrderStatuses(String orderIdsJson, String newStatus) {
+        if (orderIdsJson == null || orderIdsJson.isBlank()) return List.of();
         try {
             List<String> ids = objectMapper.readValue(orderIdsJson,
                 objectMapper.getTypeFactory().constructCollectionType(List.class, String.class));
-            if (ids.isEmpty()) return;
+            if (ids.isEmpty()) return List.of();
             for (String id : ids) {
                 jdbcTemplate.update("UPDATE orders SET status = ? WHERE id::text = ?", newStatus, id);
             }
             log.info("Updated {} order(s) to status {}", ids.size(), newStatus);
+            return ids;
         } catch (Exception e) {
             log.warn("Failed to update order statuses: {}", e.getMessage());
+            return List.of();
         }
     }
 }

@@ -11,28 +11,36 @@ locals {
   # Image registry
   registry_url = azurerm_container_registry.main.login_server
 
+  # Redis
+  redis_host = azurerm_redis_cache.main.hostname
+  redis_port = "6380"
+
   # Variables communes à tous les services Java Spring Boot
   java_common_env = [
-    { name = "SPRING_DATASOURCE_USERNAME",  value = var.postgres_admin_login,                       secret_name = null },
-    { name = "SPRING_DATASOURCE_PASSWORD",  value = null,                                            secret_name = "pg-password" },
-    { name = "KAFKA_BOOTSTRAP_SERVERS",     value = local.kafka_bootstrap,                           secret_name = null },
-    { name = "KAFKA_SASL_JAAS_CONFIG",      value = null,                                            secret_name = "kafka-sasl-config" },
-    { name = "KAFKA_SECURITY_PROTOCOL",     value = "SASL_SSL",                                      secret_name = null },
-    { name = "KAFKA_SASL_MECHANISM",        value = "PLAIN",                                         secret_name = null },
-    { name = "KEYCLOAK_INTERNAL_URL",       value = "http://optiflow-keycloak",                      secret_name = null },
-    { name = "SPRING_PROFILES_ACTIVE",      value = var.environment,                                 secret_name = null },
+    { name = "SPRING_DATASOURCE_USERNAME",  value = var.postgres_admin_login,   secret_name = null },
+    { name = "SPRING_DATASOURCE_PASSWORD",  value = null,                        secret_name = "pg-password" },
+    { name = "KAFKA_BOOTSTRAP_SERVERS",     value = local.kafka_bootstrap,       secret_name = null },
+    { name = "KAFKA_SASL_JAAS_CONFIG",      value = null,                        secret_name = "kafka-sasl-config" },
+    { name = "KAFKA_SECURITY_PROTOCOL",     value = "SASL_SSL",                  secret_name = null },
+    { name = "KAFKA_SASL_MECHANISM",        value = "PLAIN",                     secret_name = null },
+    { name = "KEYCLOAK_INTERNAL_URL",       value = "http://optiflow-keycloak",  secret_name = null },
+    { name = "SPRING_PROFILES_ACTIVE",      value = var.environment,             secret_name = null },
   ]
 
   # Variables communes Node.js NestJS
   node_common_env = [
-    { name = "DB_HOST",                 value = local.pg_host,                secret_name = null },
-    { name = "DB_USERNAME",             value = var.postgres_admin_login,     secret_name = null },
-    { name = "DB_PASSWORD",             value = null,                         secret_name = "pg-password" },
-    { name = "KAFKA_BROKERS",           value = local.kafka_bootstrap,        secret_name = null },
-    { name = "KAFKA_SASL_USERNAME",     value = "optiflow-services",          secret_name = null },
-    { name = "KAFKA_SASL_PASSWORD",     value = null,                         secret_name = "kafka-sasl-password" },
-    { name = "KEYCLOAK_INTERNAL_URL",   value = "http://optiflow-keycloak",   secret_name = null },
-    { name = "NODE_ENV",                value = "production",                 secret_name = null },
+    { name = "DB_HOST",               value = local.pg_host,               secret_name = null },
+    { name = "DB_USERNAME",           value = var.postgres_admin_login,    secret_name = null },
+    { name = "DB_PASSWORD",           value = null,                        secret_name = "pg-password" },
+    { name = "KAFKA_BROKERS",         value = local.kafka_bootstrap,       secret_name = null },
+    { name = "KAFKA_SASL_USERNAME",   value = "optiflow-services",         secret_name = null },
+    { name = "KAFKA_SASL_PASSWORD",   value = null,                        secret_name = "kafka-sasl-password" },
+    { name = "KEYCLOAK_INTERNAL_URL", value = "http://optiflow-keycloak",  secret_name = null },
+    { name = "REDIS_HOST",            value = local.redis_host,            secret_name = null },
+    { name = "REDIS_PORT",            value = local.redis_port,            secret_name = null },
+    { name = "REDIS_PASSWORD",        value = null,                        secret_name = "redis-password" },
+    { name = "REDIS_TLS",             value = "true",                      secret_name = null },
+    { name = "NODE_ENV",              value = "production",                secret_name = null },
   ]
 }
 
@@ -268,6 +276,10 @@ resource "azurerm_container_app" "node_services" {
     value = azurerm_eventhub_namespace_authorization_rule.services.primary_key
   }
   secret {
+    name  = "redis-password"
+    value = azurerm_redis_cache.main.primary_access_key
+  }
+  secret {
     name  = "acr-password"
     value = azurerm_container_registry.main.admin_password
   }
@@ -360,5 +372,70 @@ resource "azurerm_container_app" "frontend" {
   depends_on = [
     azurerm_container_app.java_services,
     azurerm_container_app.node_services,
+  ]
+}
+
+# ── Kong API Gateway — point d'entrée unique ──────────────────────────────────
+
+resource "azurerm_container_app" "kong" {
+  name                         = "optiflow-kong"
+  container_app_environment_id = azurerm_container_app_environment.main.id
+  resource_group_name          = azurerm_resource_group.main.name
+  revision_mode                = "Single"
+  tags                         = local.tags
+
+  secret {
+    name  = "acr-password"
+    value = azurerm_container_registry.main.admin_password
+  }
+
+  registry {
+    server               = azurerm_container_registry.main.login_server
+    username             = azurerm_container_registry.main.admin_username
+    password_secret_name = "acr-password"
+  }
+
+  template {
+    min_replicas = 1
+    max_replicas = 3
+
+    container {
+      name   = "kong"
+      image  = "${local.registry_url}/optiflow-kong:${var.image_tag}"
+      cpu    = 0.5
+      memory = "1Gi"
+
+      env {
+        name  = "KONG_DATABASE"
+        value = "off"
+      }
+      env {
+        name  = "KONG_DECLARATIVE_CONFIG"
+        value = "/etc/kong/kong.yml"
+      }
+      env {
+        name  = "KONG_PROXY_ACCESS_LOG"
+        value = "/dev/stdout"
+      }
+      env {
+        name  = "KONG_PROXY_ERROR_LOG"
+        value = "/dev/stderr"
+      }
+    }
+  }
+
+  ingress {
+    external_enabled = true
+    target_port      = 8000
+    traffic_weight {
+      latest_revision = true
+      percentage      = 100
+    }
+  }
+
+  depends_on = [
+    azurerm_container_app.java_services,
+    azurerm_container_app.node_services,
+    azurerm_container_app.keycloak,
   ]
 }

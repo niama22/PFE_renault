@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
 import { AlertTriangle, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { getIncidentsResponsable } from '@/api/responsable.api'
+import UserInfoButton from '@/components/shared/UserInfoButton'
 import Header from '@/components/layout/Header'
 import StatusBadge from '@/components/shared/StatusBadge'
 import EmptyState from '@/components/shared/EmptyState'
@@ -115,11 +116,19 @@ export default function ResponsableIncidentsPage() {
                             {sev.label}
                           </span>
                           <StatusBadge status={inc.status} />
-                          {(inc as any).clientCode && (
-                            <span className="text-xs font-mono text-brand-400 bg-brand-600/10 px-2 py-0.5 rounded-full border border-brand-500/20">
-                              {(inc as any).clientCode}
-                            </span>
-                          )}
+                          {(inc as any).source === 'CHAUFFEUR' && (inc as any).chauffeurId ? (
+                            <UserInfoButton
+                              userId={(inc as any).chauffeurId}
+                              label={(inc as any).chauffeurName ?? 'Chauffeur'}
+                              variant="chauffeur"
+                            />
+                          ) : (inc as any).clientId && !(inc as any).clientId.startsWith('chauffeur:') ? (
+                            <UserInfoButton
+                              userId={(inc as any).clientId}
+                              label={(inc as any).clientCode ?? 'Client'}
+                              variant="client"
+                            />
+                          ) : null}
                           <span className="text-xs text-slate-600 ml-auto">#{inc.id.substring(0, 8)}</span>
                         </div>
                         <p className="text-sm text-slate-200 font-medium mb-1">{inc.description}</p>

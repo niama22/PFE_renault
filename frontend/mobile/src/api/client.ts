@@ -2,8 +2,8 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Replace with your machine's IP when testing on device
-export const API_BASE = 'http://192.168.11.111:8000';
-export const KEYCLOAK_URL = 'http://192.168.11.111:8180';
+export const API_BASE = 'http://192.168.11.150:8000';
+export const KEYCLOAK_URL = 'http://192.168.11.150:8180';
 export const REALM = 'optiflow';
 export const CLIENT_ID = 'optiflow-mobile';
 

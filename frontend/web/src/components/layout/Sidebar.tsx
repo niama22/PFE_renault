@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Truck, ScrollText, Package,
   MapPin, AlertTriangle, Route, CheckSquare, Activity,
   ShoppingCart, FileText, LogOut, ChevronRight, UserCircle,
-  Car, Zap,
+  Car, Zap, Ban,
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/auth.store'
@@ -31,11 +31,18 @@ const navByRole: Record<Role, NavSection[]> = {
   }],
   operateur: [
     {
+      label: 'Tableau de bord',
+      items: [
+        { to: '/operateur/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
+      ],
+    },
+    {
       label: 'Opérations',
       items: [
-        { to: '/operateur/orders',    icon: Package,        label: 'Commandes' },
-        { to: '/operateur/tournees',  icon: Route,          label: 'Tournées' },
-        { to: '/operateur/incidents', icon: AlertTriangle,  label: 'Incidents' },
+        { to: '/operateur/orders',        icon: Package,       label: 'Commandes' },
+        { to: '/operateur/tournees',      icon: Route,         label: 'Tournées' },
+        { to: '/operateur/incidents',     icon: AlertTriangle, label: 'Incidents' },
+        { to: '/operateur/cancellations', icon: Ban,           label: 'Annulations' },
       ],
     },
     {
@@ -52,7 +59,8 @@ const navByRole: Record<Role, NavSection[]> = {
         { to: '/responsable/dashboard',   icon: LayoutDashboard, label: 'Dashboard' },
         { to: '/responsable/supervision', icon: Activity,        label: 'Supervision ops.' },
         { to: '/responsable/tournees',    icon: CheckSquare,     label: 'Valider le plan' },
-        { to: '/responsable/incidents',   icon: AlertTriangle,   label: 'Incidents' },
+        { to: '/responsable/incidents',     icon: AlertTriangle, label: 'Incidents' },
+        { to: '/responsable/cancellations', icon: Ban,           label: 'Annulations' },
       ],
     },
     {

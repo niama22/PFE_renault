@@ -32,17 +32,23 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
           'commandes.planned',
           'commandes.in_transit',
           'commandes.delivered',
+          'commandes.cancellation_requested',
+          'commandes.cancelled',
+          'commandes.cancellation_rejected',
         ],
         fromBeginning: false,
       });
       await consumer.run({
         eachMessage: async ({ topic, message }) => {
           const data = JSON.parse(message.value.toString());
-          if (topic === 'commandes.validated')  await this.onOrderValidated(data);
-          if (topic === 'commandes.rejected')   await this.onOrderRejected(data);
-          if (topic === 'commandes.planned')    await this.onOrderStatusChanged(data, OrderStatus.PLANNED);
-          if (topic === 'commandes.in_transit') await this.onOrderStatusChanged(data, OrderStatus.IN_TRANSIT);
-          if (topic === 'commandes.delivered')  await this.onOrderStatusChanged(data, OrderStatus.DELIVERED);
+          if (topic === 'commandes.validated')               await this.onOrderValidated(data);
+          if (topic === 'commandes.rejected')                await this.onOrderRejected(data);
+          if (topic === 'commandes.planned')                 await this.onOrderStatusChanged(data, OrderStatus.PLANNED);
+          if (topic === 'commandes.in_transit')              await this.onOrderStatusChanged(data, OrderStatus.IN_TRANSIT);
+          if (topic === 'commandes.delivered')               await this.onOrderStatusChanged(data, OrderStatus.DELIVERED);
+          if (topic === 'commandes.cancellation_requested')  await this.onOrderStatusChanged(data, OrderStatus.CANCELLATION_REQUESTED);
+          if (topic === 'commandes.cancelled')               await this.onOrderStatusChanged(data, OrderStatus.CANCELLED);
+          if (topic === 'commandes.cancellation_rejected')   await this.onOrderStatusChanged(data, OrderStatus.CANCELLATION_REJECTED);
         },
       });
       this.logger.log('Kafka consumer started for order events');
@@ -107,8 +113,10 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
 
     await this.kafkaService.publish('commandes.created', {
       orderId: saved.id,
-      clientId: client.id,
+      clientId: user.keycloakId,        // Keycloak UUID pour lookup admin
       clientCode: client.clientCode,
+      clientName: `${client.firstName ?? ''} ${client.lastName ?? ''}`.trim(),
+      clientCompany: client.company ?? '',
       vehicles: saved.vehicles,
       requestedDeliveryDate: saved.requestedDeliveryDate,
       deliveryAddress: saved.deliveryAddress,
@@ -154,6 +162,49 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       where: { id: orderId, clientId: client.id },
     });
     if (!order) throw new NotFoundException('Commande introuvable');
+    return order;
+  }
+
+  async requestCancellation(
+    user: JwtUser,
+    orderId: string,
+    reason: string,
+    vehicleChassisIds?: string[],
+  ): Promise<Order> {
+    const client = await this.clientsService.findOrCreate(user);
+    const order = await this.ordersRepo.findOne({ where: { id: orderId, clientId: client.id } });
+    if (!order) throw new NotFoundException('Commande introuvable');
+
+    const cancellableStatuses: OrderStatus[] = [
+      OrderStatus.PENDING_VALIDATION,
+      OrderStatus.VALIDATED,
+      OrderStatus.PLANNED,
+      OrderStatus.CANCELLATION_REJECTED, // allow retry after rejection
+    ];
+    if (!cancellableStatuses.includes(order.status)) {
+      throw new ForbiddenException(`Impossible d'annuler une commande en statut ${order.status}`);
+    }
+
+    // Determine which vehicles to cancel
+    const allVehicles: any[] = Array.isArray(order.vehicles) ? order.vehicles : [];
+    const requestedVehicles = vehicleChassisIds?.length
+      ? allVehicles.filter((v: any) => vehicleChassisIds.includes(v.chassisId))
+      : allVehicles;
+
+    await this.kafkaService.publish('commandes.cancellation_requested', {
+      orderId: order.id,
+      clientId: user.keycloakId,        // Keycloak UUID pour lookup admin
+      clientCode: client.clientCode,
+      clientName: `${client.firstName ?? ''} ${client.lastName ?? ''}`.trim(),
+      clientCompany: client.company ?? '',
+      allVehicles,
+      requestedVehiclesJson: JSON.stringify(requestedVehicles),
+      reason,
+    });
+
+    await this.ordersRepo.update(orderId, { status: OrderStatus.CANCELLATION_REQUESTED });
+    order.status = OrderStatus.CANCELLATION_REQUESTED;
+    this.logger.log(`Cancellation requested for order ${orderId} by client ${client.clientCode}`);
     return order;
   }
 

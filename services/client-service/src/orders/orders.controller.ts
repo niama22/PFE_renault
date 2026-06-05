@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, ParseUUIDPipe, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
@@ -30,5 +30,16 @@ export class OrdersController {
   @ApiOperation({ summary: 'Détail d\'une commande' })
   findOne(@CurrentUser() user: JwtUser, @Param('id', ParseUUIDPipe) id: string) {
     return this.ordersService.findOne(user, id);
+  }
+
+  @Post(':id/cancel')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Demander l\'annulation d\'une commande (totale ou partielle)' })
+  requestCancellation(
+    @CurrentUser() user: JwtUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { reason: string; vehicleChassisIds?: string[] },
+  ) {
+    return this.ordersService.requestCancellation(user, id, body.reason, body.vehicleChassisIds);
   }
 }

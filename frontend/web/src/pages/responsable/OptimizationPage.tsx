@@ -19,7 +19,7 @@ function FillBar({ value }: { value: number }) {
         <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${Math.min(value, 100)}%` }} />
       </div>
       <span className="text-xs font-medium text-slate-300 w-10 text-right">{value.toFixed(1)}%</span>
-    </div>
+    </div>  
   )
 }
 

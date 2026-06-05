@@ -2,6 +2,7 @@ package com.optiflow.admin.user;
 
 import com.optiflow.admin.common.ApiResponse;
 import com.optiflow.admin.user.dto.CreateUserRequest;
+import com.optiflow.admin.user.dto.ImportResult;
 import com.optiflow.admin.user.dto.ResetPasswordRequest;
 import com.optiflow.admin.user.dto.UpdateUserRequest;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,10 +10,13 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +30,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final PdfCredentialsService pdfService;
 
     @GetMapping
     @Operation(summary = "Lister les utilisateurs (filtre par role possible)")
@@ -37,6 +42,7 @@ public class UserController {
     }
 
     @GetMapping("/{userId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RESPONSABLE', 'OPERATEUR')")
     @Operation(summary = "Détail d'un utilisateur")
     public ResponseEntity<ApiResponse<Map<String, Object>>> getUser(@PathVariable String userId) {
         return ResponseEntity.ok(ApiResponse.ok(userService.getUser(userId)));
@@ -94,5 +100,27 @@ public class UserController {
     public ResponseEntity<ApiResponse<List<Map<String, Object>>>> getUsersByRole(
             @PathVariable String role) {
         return ResponseEntity.ok(ApiResponse.ok(userService.getUsers(role, 0, 100)));
+    }
+
+    @PostMapping("/import-excel")
+    @Operation(summary = "Importer des clients depuis un fichier Excel et créer leurs comptes automatiquement")
+    public ResponseEntity<ApiResponse<ImportResult>> importFromExcel(
+            @RequestParam("file") MultipartFile file) {
+        ImportResult result = userService.importClientsFromExcel(file);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(
+                result.getCreated() + " compte(s) créé(s) sur " + result.getTotal(), result));
+    }
+
+    @PostMapping("/import-excel/pdf")
+    @Operation(summary = "Importer des clients depuis Excel et télécharger le PDF des identifiants")
+    public ResponseEntity<byte[]> importFromExcelAndDownloadPdf(
+            @RequestParam("file") MultipartFile file) {
+        ImportResult result = userService.importClientsFromExcel(file);
+        byte[] pdf = pdfService.generateCredentialsPdf(result.getAccounts());
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"identifiants-clients.pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }

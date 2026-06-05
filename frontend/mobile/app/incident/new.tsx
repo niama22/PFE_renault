@@ -11,14 +11,14 @@ import { Colors, SeverityColors } from '../../src/theme/colors';
 import type { IncidentSeverity } from '../../src/types';
 
 const INCIDENT_TYPES = [
-  { label: 'Retard de livraison',      severity: 'MEDIUM' as IncidentSeverity },
-  { label: 'Véhicule endommagé',       severity: 'HIGH'   as IncidentSeverity },
-  { label: 'Commande incomplète',      severity: 'MEDIUM' as IncidentSeverity },
-  { label: 'Mauvaise référence',       severity: 'MEDIUM' as IncidentSeverity },
-  { label: 'Problème d\'accès',        severity: 'LOW'    as IncidentSeverity },
-  { label: 'Incident en transit',      severity: 'HIGH'   as IncidentSeverity },
   { label: 'Accident de la route',     severity: 'CRITICAL' as IncidentSeverity },
-  { label: 'Autre (précisez)',         severity: 'MEDIUM' as IncidentSeverity },
+  { label: 'Panne véhicule',           severity: 'HIGH'     as IncidentSeverity },
+  { label: 'Colis endommagé',          severity: 'HIGH'     as IncidentSeverity },
+  { label: 'Client absent',            severity: 'MEDIUM'   as IncidentSeverity },
+  { label: 'Refus de livraison',       severity: 'MEDIUM'   as IncidentSeverity },
+  { label: 'Problème d\'accès',        severity: 'LOW'      as IncidentSeverity },
+  { label: 'Incident en transit',      severity: 'HIGH'     as IncidentSeverity },
+  { label: 'Autre (précisez)',         severity: 'MEDIUM'   as IncidentSeverity },
 ];
 
 const SEVERITIES: { key: IncidentSeverity; label: string }[] = [

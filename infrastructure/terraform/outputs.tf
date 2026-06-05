@@ -5,6 +5,11 @@ output "frontend_url" {
   value       = "https://${azurerm_container_app.frontend.ingress[0].fqdn}"
 }
 
+output "kong_url" {
+  description = "URL publique Kong API Gateway"
+  value       = "https://${azurerm_container_app.kong.ingress[0].fqdn}"
+}
+
 output "keycloak_internal_url" {
   description = "URL interne Keycloak (accessible depuis les Container Apps)"
   value       = "http://optiflow-keycloak"
