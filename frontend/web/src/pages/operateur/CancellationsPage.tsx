@@ -1,14 +1,67 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { motion } from 'framer-motion'
-import { Ban, ChevronRight, Download, Send, Clock, Search, CalendarDays } from 'lucide-react'
+import { Ban, ChevronRight, Download, Send, Clock, Search, CalendarDays, Mail, Phone, User, MapPin, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { getCancellations, forwardCancellation, downloadCancellationDocument } from '@/api/operateur.api'
-import UserInfoButton from '@/components/shared/UserInfoButton'
+import { getUserById } from '@/api/admin.api'
 import Header from '@/components/layout/Header'
 import EmptyState from '@/components/shared/EmptyState'
 import { PageLoader } from '@/components/shared/LoadingSpinner'
 import { formatDateTime } from '@/lib/utils'
+
+function ClientDetailInline({ clientId, clientName, clientCode, clientCompany }: {
+  clientId?: string; clientName?: string; clientCode?: string; clientCompany?: string
+}) {
+  const { data: user } = useQuery({
+    queryKey: ['user-info', clientId],
+    queryFn: () => getUserById(clientId!),
+    enabled: !!clientId,
+    staleTime: 60_000,
+  })
+
+  const phone   = (user as any)?.attributes?.phone?.[0]   || (user as any)?.phone   || null
+  const city    = (user as any)?.attributes?.city?.[0]    || null
+  const company = clientCompany || (user as any)?.attributes?.company?.[0] || (user as any)?.company || null
+
+  return (
+    <div className="mt-2 p-3 rounded-xl bg-amber-500/5 border border-amber-500/15 space-y-1.5">
+      <div className="flex items-center gap-1.5 mb-1">
+        <User className="w-3 h-3 text-amber-400" />
+        <span className="text-xs font-semibold text-amber-300">{clientName || '—'}</span>
+        {clientCode && (
+          <span className="text-[10px] font-mono text-amber-500/70 bg-amber-500/10 px-1.5 py-0.5 rounded">
+            {clientCode}
+          </span>
+        )}
+      </div>
+      {user?.email && (
+        <div className="flex items-center gap-2 text-xs text-slate-300">
+          <Mail className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
+          <span>{user.email}</span>
+        </div>
+      )}
+      {phone && (
+        <div className="flex items-center gap-2 text-xs text-slate-300">
+          <Phone className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
+          <span>{phone}</span>
+        </div>
+      )}
+      {company && (
+        <div className="flex items-center gap-2 text-xs text-slate-300">
+          <Building2 className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
+          <span>{company}</span>
+        </div>
+      )}
+      {city && (
+        <div className="flex items-center gap-2 text-xs text-slate-300">
+          <MapPin className="w-3 h-3 text-amber-400/60 flex-shrink-0" />
+          <span>{city}</span>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const STATUS_LABEL: Record<string, { label: string; color: string }> = {
   PENDING_OPERATEUR:    { label: 'À transmettre',        color: 'text-amber-400 bg-amber-500/10 border-amber-500/20' },
@@ -134,21 +187,15 @@ export default function OperateurCancellationsPage() {
                           )}
                         </div>
 
-                        <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                          <p className="text-sm text-slate-100 font-medium">
-                            {c.clientCompany || c.clientName || c.clientCode || '—'}
-                          </p>
-                          {c.clientId && (
-                            <UserInfoButton
-                              userId={c.clientId.startsWith('chauffeur:') ? c.clientId.replace('chauffeur:', '') : c.clientId}
-                              label={c.clientCode ?? 'Client'}
-                              variant="client"
-                            />
-                          )}
-                        </div>
-                        <p className="text-xs text-slate-400 mb-1">
-                          Motif : {c.reason || '—'}
+                        <p className="text-xs text-slate-400 mb-1.5">
+                          <span className="text-slate-500">Motif : </span>{c.reason || '—'}
                         </p>
+                        <ClientDetailInline
+                          clientId={c.clientId?.startsWith('chauffeur:') ? c.clientId.replace('chauffeur:', '') : c.clientId}
+                          clientName={c.clientName}
+                          clientCode={c.clientCode}
+                          clientCompany={c.clientCompany}
+                        />
 
                         {/* Vehicles requested */}
                         {reqVehicles.length > 0 && (

@@ -207,12 +207,28 @@ export default function OperateurIncidentsPage() {
                             ) : null}
                             <span className="text-xs text-slate-600">#{inc.id.substring(0, 8)}</span>
                           </div>
-                          <p className="text-sm text-slate-200 font-medium mb-1 truncate">{inc.description}</p>
+                          {(() => {
+                            const parts = (inc.description ?? '').split('\n\n')
+                            return (
+                              <>
+                                <p className="text-sm text-slate-100 font-semibold mb-0.5 leading-snug">{parts[0]}</p>
+                                {parts.length > 1 && (
+                                  <p className="text-xs text-slate-400 mb-1 whitespace-pre-line leading-relaxed">{parts.slice(1).join('\n\n')}</p>
+                                )}
+                              </>
+                            )
+                          })()}
+                          {(inc as any).orderId && (
+                            <p className="text-[10px] font-mono text-brand-400/80 bg-brand-600/8 px-2 py-0.5 rounded-md inline-block mb-1">
+                              Cmd #{(inc as any).orderId.substring(0, 8)}
+                            </p>
+                          )}
                           <p className="text-xs text-slate-500">{formatDateTime(inc.createdAt)}</p>
                           {(inc as any).operatorResponse && (
-                            <p className="text-xs text-slate-400 mt-1 italic">
-                              Réponse : {(inc as any).operatorResponse}
-                            </p>
+                            <div className="mt-2 p-2.5 rounded-lg bg-emerald-600/10 border border-emerald-500/20">
+                              <p className="text-[10px] text-emerald-400 font-medium mb-0.5">Réponse opérateur</p>
+                              <p className="text-xs text-slate-300">{(inc as any).operatorResponse}</p>
+                            </div>
                           )}
                         </div>
                       </div>

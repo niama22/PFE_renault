@@ -97,7 +97,7 @@ export default function LoginPage() {
 
         {/* Bottom copyright */}
         <p className="absolute bottom-6 text-xs" style={{ color: isLight ? '#6d28d9' : 'rgba(167,139,250,0.5)' }}>
-          OptiFlow Control © 2025 — Plateforme Logistique
+          OptiFlow Control © 2026 — Plateforme Logistique
         </p>
       </motion.div>
 

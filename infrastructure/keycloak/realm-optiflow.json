@@ -8,7 +8,7 @@
   "loginWithEmailAllowed": false,
   "duplicateEmailsAllowed": false,
   "resetPasswordAllowed": true,
-  "editUsernameAllowed": false,
+  "editUsernameAllowed": true,
   "bruteForceProtected": true,
   "permanentLockout": false,
   "maxFailureWaitSeconds": 900,
@@ -17,7 +17,7 @@
   "quickLoginCheckMilliSeconds": 1000,
   "maxDeltaTimeSeconds": 43200,
   "failureFactor": 5,
-  "passwordPolicy": "length(8) and upperCase(1) and digits(1) and specialChars(1) and notUsername(undefined)",
+  "passwordPolicy": "",
   "accessTokenLifespan": 900,
   "accessTokenLifespanForImplicitFlow": 900,
   "ssoSessionIdleTimeout": 1800,
@@ -130,7 +130,9 @@
         "exp://localhost:19000/*",
         "exp://192.168.*"
       ],
-      "webOrigins": ["*"],
+      "webOrigins": [
+        "*"
+      ],
       "protocol": "openid-connect",
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
@@ -169,8 +171,8 @@
   ],
   "users": [
     {
-      "username": "admin",
-      "email": "admin@optiflow.local",
+      "username": "admin1",
+      "email": "admin1@optiflow.local",
       "firstName": "System",
       "lastName": "Admin",
       "enabled": true,
@@ -178,11 +180,13 @@
       "credentials": [
         {
           "type": "password",
-          "value": "Admin@1234",
+          "value": "password123",
           "temporary": false
         }
       ],
-      "realmRoles": ["admin"]
+      "realmRoles": [
+        "admin"
+      ]
     },
     {
       "username": "operateur1",
@@ -194,11 +198,31 @@
       "credentials": [
         {
           "type": "password",
-          "value": "Operateur@1234",
+          "value": "password123",
           "temporary": false
         }
       ],
-      "realmRoles": ["operateur"]
+      "realmRoles": [
+        "operateur"
+      ]
+    },
+    {
+      "username": "operateur2",
+      "email": "operateur2@optiflow.local",
+      "firstName": "Paul",
+      "lastName": "Bernard",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "operateur"
+      ]
     },
     {
       "username": "responsable1",
@@ -210,15 +234,165 @@
       "credentials": [
         {
           "type": "password",
-          "value": "Responsable@1234",
+          "value": "password123",
           "temporary": false
         }
       ],
-      "realmRoles": ["responsable"]
+      "realmRoles": [
+        "responsable"
+      ]
+    },
+    {
+      "username": "responsable2",
+      "email": "responsable2@optiflow.local",
+      "firstName": "Sophie",
+      "lastName": "Leroy",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "responsable"
+      ]
+    },
+    {
+      "username": "AUTO-BENALI-01",
+      "email": "ahmed.benali@automaroc.ma",
+      "firstName": "Ahmed",
+      "lastName": "Benali",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "client"
+      ],
+      "attributes": {
+        "clientCode": [
+          "AUTO-BENALI-01"
+        ]
+      }
+    },
+    {
+      "username": "TRANS-MOUS-02",
+      "email": "sara.moussaoui@transauto.ma",
+      "firstName": "Sara",
+      "lastName": "Moussaoui",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "client"
+      ],
+      "attributes": {
+        "clientCode": [
+          "TRANS-MOUS-02"
+        ]
+      }
+    },
+    {
+      "username": "ALAMI-IMPORT-03",
+      "email": "youssef.alami@alami-import.ma",
+      "firstName": "Youssef",
+      "lastName": "Alami",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "client"
+      ],
+      "attributes": {
+        "clientCode": [
+          "ALAMI-IMPORT-03"
+        ]
+      }
+    },
+    {
+      "username": "chauffeur1",
+      "email": "chauffeur1@optiflow.local",
+      "firstName": "Karim",
+      "lastName": "Idrissi",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "chauffeur"
+      ]
+    },
+    {
+      "username": "chauffeur2",
+      "email": "chauffeur2@optiflow.local",
+      "firstName": "Hassan",
+      "lastName": "Tazi",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "chauffeur"
+      ]
+    },
+    {
+      "username": "IMPEX-AUTO-2024",
+      "firstName": "Nadia",
+      "lastName": "Chraibi",
+      "email": "nadia.chraibi@impex-auto.ma",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "password123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "client"
+      ],
+      "attributes": {
+        "clientCode": [
+          "IMPEX-AUTO-2024"
+        ]
+      }
     }
   ],
   "eventsEnabled": true,
-  "eventsListeners": ["jboss-logging"],
+  "eventsListeners": [
+    "jboss-logging"
+  ],
   "enabledEventTypes": [
     "LOGIN",
     "LOGIN_ERROR",

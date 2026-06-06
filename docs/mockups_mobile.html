@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<title>OptiFlow Mobile — Mockups</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #e8eaf0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 40px 20px;
+  }
+  h1 { text-align:center; font-size:18px; color:#374151; margin-bottom:8px; }
+  .subtitle { text-align:center; font-size:13px; color:#9ca3af; margin-bottom:40px; }
+  .grid {
+    display: flex; flex-wrap: wrap; gap: 40px;
+    justify-content: center; align-items: flex-start;
+  }
+  .screen-wrap { display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .screen-label { font-size:13px; font-weight:700; color:#374151; letter-spacing:.5px; }
+
+  /* iPhone frame */
+  .phone {
+    width: 375px;
+    background: #f8fafc;
+    border-radius: 44px;
+    border: 10px solid #1c1c1e;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25), inset 0 0 0 2px #3a3a3c;
+  }
+  .phone-screen { width:100%; min-height:780px; background:#f8fafc; position:relative; overflow:hidden; }
+
+  /* Status bar */
+  .statusbar {
+    height:44px; background:#f8fafc;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 20px 0 28px; position:relative; z-index:10;
+  }
+  .statusbar .time { font-size:15px; font-weight:700; color:#111827; }
+  .statusbar .icons { display:flex; align-items:center; gap:6px; }
+  .statusbar .icons span { font-size:12px; color:#111827; }
+
+  /* Notch */
+  .notch {
+    width:120px; height:30px; background:#1c1c1e;
+    border-radius:0 0 20px 20px;
+    position:absolute; top:0; left:50%; transform:translateX(-50%);
+    z-index:20;
+  }
+
+  /* Home indicator */
+  .home-bar {
+    height:34px; display:flex; align-items:center; justify-content:center;
+    background:#f8fafc;
+  }
+  .home-bar div { width:120px; height:5px; background:#c7c7cc; border-radius:3px; }
+
+  /* === COMMON COMPONENTS === */
+  .btn-primary {
+    background: #f97316;
+    color: #fff;
+    border: none; border-radius: 12px;
+    padding: 15px; width: 100%;
+    font-size: 16px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .input-field {
+    display:flex; align-items:center; gap:10px;
+    background:#f8fafc; border:1.5px solid #e5e7eb;
+    border-radius:12px; padding:12px 14px; margin-bottom:14px;
+  }
+  .input-field span { font-size:14px; color:#9ca3af; flex:1; }
+  .icon { font-size:18px; color:#9ca3af; }
+  .card-section {
+    background:#fff; border-radius:20px; padding:24px;
+    box-shadow:0 2px 8px rgba(0,0,0,0.06);
+  }
+
+  /* === SCREEN 1 : LOGIN === */
+  .login-screen .logo-area {
+    padding: 48px 0 24px;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  .logo-badge {
+    width:110px; height:110px; background:linear-gradient(135deg,#f97316,#fb923c);
+    border-radius:28px; display:flex; align-items:center; justify-content:center;
+    font-size:48px; box-shadow:0 8px 24px rgba(249,115,22,.35); margin-bottom:16px;
+  }
+  .logo-title { font-size:20px; font-weight:800; color:#111827; }
+  .logo-sub   { font-size:13px; color:#6b7280; margin-top:2px; }
+  .login-screen .form-area { padding:0 24px 24px; }
+  .form-title { font-size:22px; font-weight:700; color:#111827; margin-bottom:4px; }
+  .form-subtitle { font-size:13px; color:#6b7280; margin-bottom:24px; }
+  .footer-txt { text-align:center; font-size:12px; color:#9ca3af; padding:16px; }
+
+  /* === SCREEN 2 : PIN === */
+  .pin-screen {
+    display:flex; flex-direction:column; align-items:center;
+    justify-content:flex-start; padding:0 32px 24px;
+  }
+  .pin-logo { width:80px; height:60px; background:linear-gradient(135deg,#f97316,#fb923c); border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:28px; margin:32px 0 20px; }
+  .pin-title { font-size:22px; font-weight:700; color:#111827; margin-bottom:6px; }
+  .pin-sub   { font-size:13px; color:#6b7280; text-align:center; margin-bottom:28px; line-height:1.5; }
+  .pin-dots  { display:flex; gap:16px; margin-bottom:32px; }
+  .pin-dot   { width:16px; height:16px; border-radius:50%; border:2.5px solid #f97316; background:transparent; }
+  .pin-dot.filled { background:#f97316; }
+  .pin-pad   { display:flex; flex-direction:column; gap:14px; width:100%; }
+  .pin-row   { display:flex; justify-content:center; gap:20px; }
+  .pin-key   {
+    width:80px; height:80px; border-radius:50%; background:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:28px; font-weight:600; color:#111827;
+    box-shadow:0 2px 8px rgba(0,0,0,0.08); cursor:pointer;
+    border:none;
+  }
+  .pin-key.delete { font-size:20px; color:#6b7280; }
+  .pin-key.empty  { visibility:hidden; }
+  .bio-btn { margin-top:24px; display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .bio-btn span:first-child { font-size:28px; }
+  .bio-btn span:last-child  { font-size:13px; color:#f97316; font-weight:600; }
+  .logout-link { margin-top:16px; font-size:13px; color:#9ca3af; text-decoration:underline; }
+
+  /* === SCREEN 3 : MISSIONS === */
+  .missions-screen { display:flex; flex-direction:column; }
+  .missions-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 16px 12px; background:#fff;
+    border-bottom:1px solid #f3f4f6;
+  }
+  .header-logo { display:flex; flex-direction:column; }
+  .header-logo .logo-small { width:80px; height:32px; background:linear-gradient(135deg,#f97316,#fb923c); border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px; color:#fff; letter-spacing:0.5px; }
+  .header-logo .welcome { font-size:13px; color:#6b7280; margin-top:4px; }
+  .summary-bar {
+    display:flex; background:#fff;
+    margin:12px 16px; border-radius:16px;
+    padding:14px 0; box-shadow:0 2px 6px rgba(0,0,0,0.05);
+  }
+  .summary-item { flex:1; display:flex; flex-direction:column; align-items:center; }
+  .summary-num   { font-size:26px; font-weight:800; color:#f97316; }
+  .summary-label { font-size:11px; color:#6b7280; margin-top:2px; }
+  .summary-divider { width:1px; background:#f3f4f6; }
+  .section-title { font-size:15px; font-weight:700; color:#111827; padding:0 16px; margin-bottom:10px; }
+  .mission-card {
+    background:#fff; border-radius:16px; padding:16px;
+    margin:0 16px 10px; box-shadow:0 2px 8px rgba(0,0,0,0.06);
+    position:relative;
+  }
+  .mission-row   { display:flex; align-items:center; gap:12px; }
+  .mission-icon  { width:44px; height:44px; border-radius:22px; background:#fff7ed; display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+  .mission-info  { flex:1; }
+  .mission-number{ font-size:15px; font-weight:700; color:#111827; }
+  .mission-date  { font-size:12px; color:#6b7280; margin-top:2px; }
+  .badge { border-radius:20px; padding:3px 10px; font-size:11px; font-weight:700; display:inline-block; }
+  .badge-pending    { background:#f3f4f6; color:#374151; }
+  .badge-inprogress { background:#fff7ed; color:#f97316; }
+  .badge-completed  { background:#f0fdf4; color:#16a34a; }
+  .badge-acknowledged { background:#eff6ff; color:#2563eb; }
+  .mission-meta { display:flex; align-items:center; gap:4px; margin-top:8px; }
+  .mission-meta span { font-size:12px; color:#6b7280; }
+  .mission-note { display:flex; align-items:center; gap:4px; margin-top:6px; background:#eff6ff; border-radius:8px; padding:8px; }
+  .mission-note span { font-size:12px; color:#2563eb; }
+  .chevron { position:absolute; right:16px; top:50%; transform:translateY(-50%); font-size:16px; color:#9ca3af; }
+
+  /* === SCREEN 4 : MESSAGES === */
+  .messages-screen { display:flex; flex-direction:column; height:780px; }
+  .messages-header {
+    padding:12px 16px; background:#fff; border-bottom:1px solid #f3f4f6;
+    display:flex; align-items:center; gap:12px;
+  }
+  .back-btn { font-size:22px; color:#f97316; }
+  .messages-header .title-group .title { font-size:16px; font-weight:700; color:#111827; }
+  .messages-header .title-group .sub   { font-size:12px; color:#6b7280; }
+  .messages-list { flex:1; padding:16px; display:flex; flex-direction:column; gap:12px; overflow:hidden; }
+  .bubble-row-op  { display:flex; align-items:flex-end; gap:8px; justify-content:flex-start; }
+  .bubble-row-me  { display:flex; align-items:flex-end; gap:8px; justify-content:flex-end; }
+  .bubble-avatar  { width:32px; height:32px; border-radius:16px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; font-size:14px; border:1px solid #e5e7eb; flex-shrink:0; }
+  .bubble {
+    max-width:72%; border-radius:16px; padding:11px 14px;
+  }
+  .bubble-op { background:#fff; box-shadow:0 1px 4px rgba(0,0,0,0.08); border-bottom-left-radius:4px; }
+  .bubble-me { background:#f97316; border-bottom-right-radius:4px; }
+  .bubble-sender { font-size:11px; font-weight:700; color:#6b7280; margin-bottom:4px; }
+  .bubble-text-op { font-size:14px; color:#111827; line-height:1.45; }
+  .bubble-text-me { font-size:14px; color:#fff; line-height:1.45; }
+  .bubble-time    { font-size:10px; color:#9ca3af; margin-top:4px; text-align:right; }
+  .bubble-time-me { color:rgba(255,255,255,.6); }
+  .msg-bar {
+    display:flex; align-items:flex-end; gap:10px; padding:12px;
+    background:#fff; border-top:1px solid #f3f4f6;
+  }
+  .msg-input {
+    flex:1; background:#f8fafc; border-radius:22px;
+    padding:10px 16px; font-size:14px; color:#9ca3af;
+    border:1px solid #e5e7eb;
+  }
+  .send-btn {
+    width:42px; height:42px; border-radius:21px; background:#f97316;
+    display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; flex-shrink:0;
+  }
+
+  /* === SCREEN 5 : INCIDENT === */
+  .incident-screen { padding:16px; }
+  .inc-card { background:#fff; border-radius:16px; padding:16px; margin-bottom:14px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+  .inc-label { font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:.5px; margin-bottom:12px; }
+  .inc-grid { display:flex; flex-wrap:wrap; gap:8px; }
+  .inc-type-btn {
+    display:flex; align-items:center; gap:6px;
+    padding:10px 10px; border-radius:10px;
+    border:1.5px solid #e5e7eb; background:#f8fafc;
+    width:calc(50% - 4px); font-size:12px; color:#111827;
+  }
+  .inc-type-btn.active { border-color:#f97316; background:#fff7ed; color:#f97316; }
+  .inc-type-btn span:first-child { font-size:16px; }
+  .sev-row { display:flex; gap:8px; }
+  .sev-btn { flex:1; border-radius:10px; padding:10px; text-align:center; border:1.5px solid #e5e7eb; background:#f8fafc; font-size:12px; color:#6b7280; }
+  .sev-btn.active-high { border-color:#f97316; background:#fff7ed; color:#f97316; font-weight:700; }
+  .sev-btn.active-critical { border-color:#dc2626; background:#fef2f2; color:#dc2626; font-weight:700; }
+  .sev-btn.active-medium { border-color:#d97706; background:#fffbeb; color:#d97706; font-weight:700; }
+  .inc-textarea {
+    width:100%; background:#f8fafc; border-radius:10px; padding:12px;
+    font-size:14px; color:#9ca3af; border:1px solid #e5e7eb;
+    min-height:80px; resize:none;
+  }
+  .btn-danger {
+    background:#ef4444; color:#fff; border:none; border-radius:14px;
+    padding:16px; width:100%; font-size:15px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; gap:8px; cursor:pointer;
+  }
+
+  /* === SCREEN 6 : MISSION DETAIL === */
+  .detail-screen { padding:0; }
+  .detail-header { background:#fff; padding:16px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; gap:12px; }
+  .detail-back { font-size:22px; color:#f97316; }
+  .detail-title { font-size:17px; font-weight:700; color:#111827; }
+  .detail-body { padding:16px; display:flex; flex-direction:column; gap:12px; }
+  .info-card { background:#fff; border-radius:16px; padding:16px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+  .info-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f9fafb; }
+  .info-row:last-child { border-bottom:none; }
+  .info-row .key { font-size:12px; color:#6b7280; }
+  .info-row .val { font-size:13px; font-weight:600; color:#111827; }
+  .action-row { display:flex; gap:10px; }
+  .btn-success { background:#16a34a; color:#fff; border:none; border-radius:12px; padding:14px; flex:1; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .btn-orange  { background:#f97316; color:#fff; border:none; border-radius:12px; padding:14px; flex:1; font-size:14px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:6px; }
+  .delivery-item { display:flex; align-items:flex-start; gap:12px; padding:12px 0; border-bottom:1px solid #f9fafb; }
+  .delivery-item:last-child { border-bottom:none; }
+  .delivery-num { width:32px; height:32px; border-radius:8px; background:#fff7ed; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:#f97316; flex-shrink:0; }
+  .delivery-info .client { font-size:13px; font-weight:600; color:#111827; }
+  .delivery-info .address { font-size:12px; color:#6b7280; margin-top:2px; }
+  .delivery-info .chassis { font-size:11px; color:#9ca3af; margin-top:2px; font-family:monospace; }
+</style>
+</head>
+<body>
+
+<h1>OptiFlow Driver — Maquettes écrans</h1>
+<p class="subtitle">Ouvrir dans Chrome · Imprimer / Capturer chaque écran pour le rapport</p>
+
+<div class="grid">
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SCREEN 1 : LOGIN                         -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="screen-wrap">
+    <div class="screen-label">1 — Connexion</div>
+    <div class="phone">
+      <div class="phone-screen login-screen">
+        <div class="notch"></div>
+        <div class="statusbar" style="background:#f8fafc">
+          <span class="time">9:41</span>
+          <div class="icons"><span>📶</span><span>🔋</span></div>
+        </div>
+
+        <div class="logo-area">
+          <div class="logo-badge">🚛</div>
+          <div class="logo-title">OptiFlow Driver</div>
+          <div class="logo-sub">Mobile Logistics</div>
+        </div>
+
+        <div class="form-area">
+          <div class="card-section">
+            <div class="form-title">Connexion</div>
+            <div class="form-subtitle">Espace chauffeur OptiFlow</div>
+
+            <div class="input-field">
+              <span class="icon">👤</span>
+              <span>chauffeur1</span>
+            </div>
+            <div class="input-field">
+              <span class="icon">🔒</span>
+              <span style="flex:1">••••••••••</span>
+              <span class="icon" style="font-size:14px">👁</span>
+            </div>
+
+            <button class="btn-primary">
+              <span>→</span> Se connecter
+            </button>
+          </div>
+        </div>
+
+        <div class="footer-txt">OptiFlow Driver · Mobile Logistics</div>
+      </div>
+      <div class="home-bar"><div></div></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SCREEN 2 : PIN                           -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="screen-wrap">
+    <div class="screen-label">2 — Code PIN</div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="notch"></div>
+        <div class="statusbar">
+          <span class="time">9:42</span>
+          <div class="icons"><span>📶</span><span>🔋</span></div>
+        </div>
+
+        <div class="pin-screen">
+          <div class="pin-logo">🚛</div>
+          <div class="pin-title">Entrez votre PIN</div>
+          <div class="pin-sub">Bienvenue, identifiez-vous<br>pour continuer</div>
+
+          <div class="pin-dots">
+            <div class="pin-dot filled"></div>
+            <div class="pin-dot filled"></div>
+            <div class="pin-dot"></div>
+            <div class="pin-dot"></div>
+          </div>
+
+          <div class="pin-pad">
+            <div class="pin-row">
+              <button class="pin-key">1</button>
+              <button class="pin-key">2</button>
+              <button class="pin-key">3</button>
+            </div>
+            <div class="pin-row">
+              <button class="pin-key">4</button>
+              <button class="pin-key">5</button>
+              <button class="pin-key">6</button>
+            </div>
+            <div class="pin-row">
+              <button class="pin-key">7</button>
+              <button class="pin-key">8</button>
+              <button class="pin-key">9</button>
+            </div>
+            <div class="pin-row">
+              <button class="pin-key empty"></button>
+              <button class="pin-key">0</button>
+              <button class="pin-key delete">⌫</button>
+            </div>
+          </div>
+
+          <div class="bio-btn">
+            <span>🫆</span>
+            <span>Biométrie</span>
+          </div>
+          <div class="logout-link">Se déconnecter</div>
+        </div>
+      </div>
+      <div class="home-bar"><div></div></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SCREEN 3 : MISSIONS                      -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="screen-wrap">
+    <div class="screen-label">3 — Mes missions</div>
+    <div class="phone">
+      <div class="phone-screen missions-screen">
+        <div class="notch"></div>
+        <div class="statusbar" style="background:#fff">
+          <span class="time">9:43</span>
+          <div class="icons"><span>📶</span><span>🔋</span></div>
+        </div>
+
+        <div class="missions-header">
+          <div class="header-logo">
+            <div class="logo-small">🚛 OPTIFLOW</div>
+            <div class="welcome">Bonjour, Karim 👋</div>
+          </div>
+          <span style="font-size:22px; color:#6b7280">⬚</span>
+        </div>
+
+        <div class="summary-bar">
+          <div class="summary-item">
+            <div class="summary-num">3</div>
+            <div class="summary-label">Actives</div>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-item">
+            <div class="summary-num">1</div>
+            <div class="summary-label">En attente</div>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-item">
+            <div class="summary-num">2</div>
+            <div class="summary-label">En cours</div>
+          </div>
+        </div>
+
+        <div class="section-title">Mes missions</div>
+
+        <div class="mission-card">
+          <div class="mission-row">
+            <div class="mission-icon">🚛</div>
+            <div class="mission-info">
+              <div class="mission-number">TRN-2024-0012</div>
+              <div class="mission-date">07 juin 2026</div>
+            </div>
+            <span class="badge badge-inprogress">En cours</span>
+          </div>
+          <div class="mission-meta">
+            <span>📦</span>
+            <span>4 commandes</span>
+          </div>
+          <div class="mission-note">
+            <span>Casablanca → Rabat · RN1</span>
+          </div>
+          <div class="chevron">›</div>
+        </div>
+
+        <div class="mission-card">
+          <div class="mission-row">
+            <div class="mission-icon">🚛</div>
+            <div class="mission-info">
+              <div class="mission-number">TRN-2024-0015</div>
+              <div class="mission-date">08 juin 2026</div>
+            </div>
+            <span class="badge badge-acknowledged">Accusé</span>
+          </div>
+          <div class="mission-meta">
+            <span>📦</span>
+            <span>2 commandes</span>
+          </div>
+          <div class="chevron">›</div>
+        </div>
+
+        <div class="mission-card">
+          <div class="mission-row">
+            <div class="mission-icon">🚛</div>
+            <div class="mission-info">
+              <div class="mission-number">TRN-2024-0018</div>
+              <div class="mission-date">10 juin 2026</div>
+            </div>
+            <span class="badge badge-pending">En attente</span>
+          </div>
+          <div class="mission-meta">
+            <span>📦</span>
+            <span>3 commandes</span>
+          </div>
+          <div class="chevron">›</div>
+        </div>
+
+      </div>
+      <div class="home-bar"><div></div></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SCREEN 4 : DETAIL MISSION                -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="screen-wrap">
+    <div class="screen-label">4 — Détail mission</div>
+    <div class="phone">
+      <div class="phone-screen detail-screen">
+        <div class="notch"></div>
+        <div class="statusbar" style="background:#fff">
+          <span class="time">9:44</span>
+          <div class="icons"><span>📶</span><span>🔋</span></div>
+        </div>
+
+        <div class="detail-header">
+          <div class="detail-back">‹</div>
+          <div class="detail-title">TRN-2024-0012</div>
+        </div>
+
+        <div class="detail-body">
+          <div class="info-card">
+            <div class="info-row"><span class="key">Statut</span><span class="badge badge-inprogress">En cours</span></div>
+            <div class="info-row"><span class="key">Date prévue</span><span class="val">07 juin 2026</span></div>
+            <div class="info-row"><span class="key">Camion</span><span class="val">3D-55127</span></div>
+            <div class="info-row"><span class="key">Commandes</span><span class="val">4 véhicules</span></div>
+          </div>
+
+          <div class="action-row">
+            <button class="btn-success">✓ Accepter</button>
+            <button class="btn-orange">💬 Messages</button>
+          </div>
+
+          <div class="info-card">
+            <div class="inc-label">Livraisons</div>
+            <div class="delivery-item">
+              <div class="delivery-num">1</div>
+              <div class="delivery-info">
+                <div class="client">AUTO-BENALI-01</div>
+                <div class="address">📍 Casablanca, Zone Industrielle</div>
+                <div class="chassis">VIN: VF1RFD00067549832</div>
+              </div>
+            </div>
+            <div class="delivery-item">
+              <div class="delivery-num">2</div>
+              <div class="delivery-info">
+                <div class="client">TRANS-MOUS-02</div>
+                <div class="address">📍 Rabat, Hay Riad</div>
+                <div class="chassis">VIN: VF3BYHKXF12345678</div>
+              </div>
+            </div>
+            <div class="delivery-item">
+              <div class="delivery-num">3</div>
+              <div class="delivery-info">
+                <div class="client">ALAMI-IMPORT-03</div>
+                <div class="address">📍 Kénitra, Zone Franche</div>
+                <div class="chassis">VIN: VF1AG000X51234567</div>
+              </div>
+            </div>
+          </div>
+
+          <button class="btn-danger">⚠ Signaler un incident</button>
+        </div>
+
+      </div>
+      <div class="home-bar"><div></div></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SCREEN 5 : MESSAGES                      -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="screen-wrap">
+    <div class="screen-label">5 — Messagerie</div>
+    <div class="phone">
+      <div class="phone-screen messages-screen">
+        <div class="notch"></div>
+        <div class="statusbar" style="background:#fff">
+          <span class="time">9:46</span>
+          <div class="icons"><span>📶</span><span>🔋</span></div>
+        </div>
+
+        <div class="messages-header">
+          <div class="back-btn">‹</div>
+          <div class="title-group">
+            <div class="title">TRN-2024-0012</div>
+            <div class="sub">Messagerie opérateur</div>
+          </div>
+        </div>
+
+        <div class="messages-list">
+          <div class="bubble-row-op">
+            <div class="bubble-avatar">🎧</div>
+            <div class="bubble bubble-op">
+              <div class="bubble-sender">Opérateur</div>
+              <div class="bubble-text-op">Bonjour Karim, votre tournée démarre demain à 7h00. Confirmez la prise en charge.</div>
+              <div class="bubble-time">08:32</div>
+            </div>
+          </div>
+
+          <div class="bubble-row-me">
+            <div class="bubble bubble-me">
+              <div class="bubble-text-me">Bonjour, bien reçu. Je confirme la prise en charge pour demain 7h.</div>
+              <div class="bubble-time bubble-time-me">08:45</div>
+            </div>
+          </div>
+
+          <div class="bubble-row-op">
+            <div class="bubble-avatar">🎧</div>
+            <div class="bubble bubble-op">
+              <div class="bubble-sender">Opérateur</div>
+              <div class="bubble-text-op">Parfait ! Le camion 3D-55127 est garé au dépôt — portique B. Bon courage !</div>
+              <div class="bubble-time">08:47</div>
+            </div>
+          </div>
+
+          <div class="bubble-row-me">
+            <div class="bubble bubble-me">
+              <div class="bubble-text-me">Compris, merci.</div>
+              <div class="bubble-time bubble-time-me">09:02</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="msg-bar">
+          <div class="msg-input">Message…</div>
+          <div class="send-btn">➤</div>
+        </div>
+
+      </div>
+      <div class="home-bar"><div></div></div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════ -->
+  <!-- SCREEN 6 : INCIDENT                      -->
+  <!-- ════════════════════════════════════════ -->
+  <div class="screen-wrap">
+    <div class="screen-label">6 — Signalement incident</div>
+    <div class="phone">
+      <div class="phone-screen">
+        <div class="notch"></div>
+        <div class="statusbar" style="background:#f8fafc">
+          <span class="time">10:15</span>
+          <div class="icons"><span>📶</span><span>🔋</span></div>
+        </div>
+
+        <div class="detail-header" style="background:#fff">
+          <div class="detail-back">‹</div>
+          <div class="detail-title">Signaler un incident</div>
+        </div>
+
+        <div class="incident-screen" style="overflow:auto; max-height:700px;">
+          <div class="inc-card">
+            <div class="inc-label">Type d'incident <span style="color:#ef4444">*</span></div>
+            <div class="inc-grid">
+              <div class="inc-type-btn active">
+                <span>⚠️</span> Panne véhicule
+              </div>
+              <div class="inc-type-btn">
+                <span>⚠️</span> Accident de la route
+              </div>
+              <div class="inc-type-btn">
+                <span>⚠️</span> Colis endommagé
+              </div>
+              <div class="inc-type-btn">
+                <span>⚠️</span> Client absent
+              </div>
+              <div class="inc-type-btn">
+                <span>⚠️</span> Refus de livraison
+              </div>
+              <div class="inc-type-btn">
+                <span>⚠️</span> Autre (précisez)
+              </div>
+            </div>
+          </div>
+
+          <div class="inc-card">
+            <div class="inc-label">Sévérité</div>
+            <div class="sev-row">
+              <div class="sev-btn">Faible</div>
+              <div class="sev-btn">Moyen</div>
+              <div class="sev-btn active-high">Élevé</div>
+              <div class="sev-btn">Critique</div>
+            </div>
+          </div>
+
+          <div class="inc-card">
+            <div class="inc-label">Détails supplémentaires</div>
+            <div class="inc-textarea" style="padding:12px; color:#9ca3af; background:#f8fafc; border:1px solid #e5e7eb; border-radius:10px; font-size:14px; min-height:80px;">
+              Panne moteur au km 54 de la RN1, en attente du dépanneur…
+            </div>
+          </div>
+
+          <button class="btn-danger">⚠ Signaler l'incident</button>
+        </div>
+
+      </div>
+      <div class="home-bar"><div></div></div>
+    </div>
+  </div>
+
+</div>
+
+<p style="text-align:center; margin-top:50px; font-size:12px; color:#9ca3af; padding-bottom:40px;">
+  OptiFlow Driver © 2026 — Maquettes fidèles au code source (thème clair, couleur orange #f97316, police système iOS)
+</p>
+</body>
+</html>

@@ -72,6 +72,34 @@ export const getOrderStats   = () => operateurApi.get<ApiResponse<Record<string,
 export const getTourneeStats = () => operateurApi.get<ApiResponse<Record<string,number>>>('/tournees/stats').then(r => r.data.data ?? {})
 export const getRecentOrders = () => operateurApi.get<ApiResponse<PageResult<Order>>>('/orders', { params: { page:0, size:6 } }).then(r => r.data.data?.content ?? [])
 
+// Messages chauffeur ↔ opérateur
+export type OMessage = {
+  id: string
+  missionId: string
+  chauffeurId?: string
+  chauffeurName?: string
+  sender: 'CHAUFFEUR' | 'OPERATEUR'
+  senderName: string
+  content: string
+  readByOperator: boolean
+  createdAt: string
+}
+
+export const getMessageThreads = () =>
+  operateurApi.get<ApiResponse<OMessage[]>>('/messages/threads').then(r => r.data.data ?? [])
+
+export const getMessageThread = (missionId: string) =>
+  operateurApi.get<ApiResponse<OMessage[]>>(`/messages/mission/${missionId}`).then(r => r.data.data ?? [])
+
+export const replyToDriver = (missionId: string, content: string, chauffeurId?: string) =>
+  operateurApi.post<ApiResponse<OMessage>>(`/messages/mission/${missionId}/reply`, { content, chauffeurId }).then(r => r.data.data)
+
+export const markThreadRead = (missionId: string) =>
+  operateurApi.post(`/messages/mission/${missionId}/read`)
+
+export const getUnreadCount = (missionId: string) =>
+  operateurApi.get<ApiResponse<number>>(`/messages/mission/${missionId}/unread`).then(r => r.data.data ?? 0)
+
 // Cancellations
 export const getCancellations = () =>
   operateurApi.get<ApiResponse<any[]>>('/cancellations').then(r => r.data.data ?? [])

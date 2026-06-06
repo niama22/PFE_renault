@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Truck, ScrollText, Package,
   MapPin, AlertTriangle, Route, CheckSquare, Activity,
   ShoppingCart, FileText, LogOut, ChevronRight, UserCircle,
-  Car, Zap, Ban,
+  Car, Zap, Ban, MessageSquare,
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/auth.store'
@@ -43,6 +43,7 @@ const navByRole: Record<Role, NavSection[]> = {
         { to: '/operateur/tournees',      icon: Route,         label: 'Tournées' },
         { to: '/operateur/incidents',     icon: AlertTriangle, label: 'Incidents' },
         { to: '/operateur/cancellations', icon: Ban,           label: 'Annulations' },
+        { to: '/operateur/messages',      icon: MessageSquare, label: 'Messagerie' },
       ],
     },
     {
@@ -75,9 +76,10 @@ const navByRole: Record<Role, NavSection[]> = {
   client: [{
     label: 'Mon Espace',
     items: [
-      { to: '/client/orders',    icon: ShoppingCart, label: 'Mes Commandes' },
-      { to: '/client/incidents', icon: FileText,     label: 'Mes Incidents' },
-      { to: '/client/profile',   icon: UserCircle,   label: 'Mon Profil' },
+      { to: '/client/orders',        icon: ShoppingCart, label: 'Mes Commandes' },
+      { to: '/client/incidents',     icon: FileText,     label: 'Mes Incidents' },
+      { to: '/client/cancellations', icon: Ban,          label: 'Mes Annulations' },
+      { to: '/client/profile',       icon: UserCircle,   label: 'Mon Profil' },
     ],
   }],
   chauffeur: [{

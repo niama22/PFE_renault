@@ -22,6 +22,12 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
   ) {}
 
   async onModuleInit() {
+    this.initConsumerWithRetry();
+  }
+
+  async onModuleDestroy() {}
+
+  private async initConsumerWithRetry(attempt = 1) {
     const consumer = this.kafkaService.createConsumer('client-service-orders-group');
     try {
       await consumer.connect();
@@ -53,11 +59,15 @@ export class OrdersService implements OnModuleInit, OnModuleDestroy {
       });
       this.logger.log('Kafka consumer started for order events');
     } catch (err) {
-      this.logger.error('Kafka consumer init failed', err.message);
+      const delay = Math.min(attempt * 5000, 30000);
+      this.logger.warn(`Kafka consumer attempt ${attempt} failed: ${err.message}. Retry in ${delay / 1000}s`);
+      if (attempt < 12) {
+        setTimeout(() => this.initConsumerWithRetry(attempt + 1), delay);
+      } else {
+        this.logger.error('Kafka consumer init permanently failed after 12 attempts');
+      }
     }
   }
-
-  async onModuleDestroy() {}
 
   private generateChassisId(brand?: string, model?: string): string {
     const b = (brand ?? 'XX').substring(0, 2).toUpperCase().replace(/[^A-Z]/g, 'X');

@@ -605,85 +605,166 @@ function CancelOrderModal({ order, onClose }: { order: any; onClose: () => void 
 
 // ── Order detail modal ────────────────────────────────────────────────────────
 
+const STATUS_STEPS_DETAIL = [
+  { key: 'PENDING_VALIDATION', label: 'En attente' },
+  { key: 'VALIDATED',          label: 'Validée' },
+  { key: 'PLANNED',            label: 'Planifiée' },
+  { key: 'IN_TRANSIT',         label: 'En transit' },
+  { key: 'DELIVERED',          label: 'Livrée' },
+]
+
+function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex items-start justify-between gap-4 py-2.5 border-b border-white/6 last:border-0">
+      <span className="text-white/50 text-xs font-medium flex-shrink-0 w-36">{label}</span>
+      <span className={`text-right text-sm leading-snug ${mono ? 'font-mono text-brand-300' : 'text-white font-medium'}`}>
+        {value || '—'}
+      </span>
+    </div>
+  )
+}
+
 function OrderDetailModal({ order, onClose, onCancel }: { order: any; onClose: () => void; onCancel: () => void }) {
   const [showChassis, setShowChassis] = useState(false)
   const vehicles: ChassisItem[] = order.vehicles ?? []
   const canCancel = CANCEL_STATUSES.includes(order.status)
+  const addr = order.deliveryAddress
 
-  const Row = ({ label, value }: { label: string; value: string }) => (
-    <div className="flex justify-between items-start py-2 border-b border-white/10 last:border-0">
-      <span className="text-white/60 text-xs font-medium w-40 flex-shrink-0">{label}</span>
-      <span className="text-white text-sm font-semibold text-right">{value}</span>
-    </div>
-  )
+  const stepIdx    = STATUS_STEPS_DETAIL.findIndex(s => s.key === order.status)
+  const isTerminal = ['DELIVERED', 'REJECTED', 'CANCELLED', 'CANCELLATION_REQUESTED', 'CANCELLATION_REJECTED'].includes(order.status)
+
+  // Vehicle model summary
+  const modelCounts: Record<string, number> = {}
+  vehicles.forEach((v: any) => {
+    const lbl = v.vehicleModelLabel ?? 'Inconnu'
+    modelCounts[lbl] = (modelCounts[lbl] ?? 0) + 1
+  })
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
         className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-        className="relative z-10 w-full max-w-xl rounded-2xl shadow-2xl overflow-y-auto max-h-[90vh]"
+        className="relative z-10 w-full max-w-xl rounded-2xl shadow-2xl overflow-y-auto max-h-[92vh]"
         style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.12)' }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-white/10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
           <div>
-            <p className="text-white font-bold text-lg">{order.orderNumber ?? `#${order.id?.substring(0, 8)}`}</p>
-            <p className="text-white/50 text-xs mt-0.5">{formatDateTime(order.createdAt)}</p>
+            <p className="text-white font-bold text-lg tracking-tight">
+              {order.orderNumber ?? `#${order.id?.substring(0, 8)}`}
+            </p>
+            <p className="text-white/40 text-xs mt-0.5">Créée le {formatDateTime(order.createdAt)}</p>
           </div>
           <StatusBadge status={order.status} />
         </div>
 
-        <div className="p-5 space-y-4">
-          {/* Infos principales */}
-          <div style={{ background: 'rgba(255,255,255,0.05)', borderRadius: 12, padding: '12px 16px' }}>
-            <Row label="Numéro commande"     value={order.orderNumber ?? '—'} />
-            <Row label="Date livraison"       value={order.requestedDeliveryDate?.split('T')[0] ?? '—'} />
-            <Row label="Arrivée estimée"      value={order.estimatedArrivalDate?.split('T')[0] ?? '—'} />
-            <Row label="Adresse de livraison" value={formatAddress(order.deliveryAddress)} />
-          </div>
-
-          {/* Note opérateur */}
-          {order.operatorNotes && (
-            <div style={{ background: 'rgba(99,102,241,0.2)', borderRadius: 12, padding: '12px 16px', border: '1px solid rgba(99,102,241,0.4)' }}>
-              <p className="text-white/60 text-xs font-medium mb-1">Note opérateur</p>
-              <p className="text-white text-sm">{order.operatorNotes}</p>
-            </div>
-          )}
-
-          {/* Motif rejet/annulation */}
-          {order.rejectionReason && (
-            <div style={{ background: 'rgba(239,68,68,0.2)', borderRadius: 12, padding: '12px 16px', border: '1px solid rgba(239,68,68,0.4)' }}>
-              <p className="text-white/60 text-xs font-medium mb-1">Motif</p>
-              <p className="text-white text-sm">{order.rejectionReason}</p>
-            </div>
-          )}
-
-          {/* Véhicules */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-white font-semibold text-sm">Véhicules ({vehicles.length})</p>
-              <button onClick={() => setShowChassis(v => !v)}
-                className="flex items-center gap-1 text-xs text-white/60 hover:text-white transition-colors">
-                {showChassis ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                {showChassis ? 'Masquer' : 'Révéler châssis'}
-              </button>
-            </div>
-            <div className="space-y-1 max-h-52 overflow-y-auto">
-              {vehicles.map((v: any, i: number) => (
-                <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg"
-                  style={{ background: 'rgba(255,255,255,0.05)' }}>
-                  <span className="font-mono text-sm text-white font-semibold">
-                    {showChassis ? v.chassisId : maskChassis(v.chassisId)}
-                  </span>
-                  <span className="text-white/70 text-xs">{v.vehicleModelLabel ?? '—'}</span>
+        {/* Timeline statut */}
+        {!isTerminal && stepIdx >= 0 && (
+          <div className="px-6 py-3 border-b border-white/6 bg-white/2">
+            <div className="flex items-center gap-1">
+              {STATUS_STEPS_DETAIL.map((s, i) => (
+                <div key={s.key} className="flex items-center gap-1 flex-1 min-w-0">
+                  <div className="flex flex-col items-center flex-1">
+                    <div className={`w-2 h-2 rounded-full mb-1 ${i <= stepIdx ? 'bg-brand-400' : 'bg-white/15'}`} />
+                    <span className={`text-[9px] text-center leading-tight ${i <= stepIdx ? 'text-brand-300' : 'text-white/30'}`}>
+                      {s.label}
+                    </span>
+                  </div>
+                  {i < STATUS_STEPS_DETAIL.length - 1 && (
+                    <div className={`h-px flex-1 mb-3 ${i < stepIdx ? 'bg-brand-400/60' : 'bg-white/10'}`} />
+                  )}
                 </div>
               ))}
             </div>
           </div>
+        )}
+
+        <div className="px-6 py-4 space-y-4">
+
+          {/* Infos générales */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Informations</p>
+            <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              <div className="px-4">
+                <DetailRow label="Numéro commande"  value={order.orderNumber ?? '—'} mono />
+                <DetailRow label="Date livraison souhaitée" value={order.requestedDeliveryDate?.split('T')[0] ?? '—'} />
+                <DetailRow label="Arrivée estimée"  value={order.estimatedArrivalDate?.split('T')[0] ?? '—'} />
+              </div>
+            </div>
+          </div>
+
+          {/* Adresse de livraison */}
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30 mb-2">Adresse de livraison</p>
+            <div className="rounded-xl px-4" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              {addr ? (
+                <>
+                  <DetailRow label="Rue"         value={addr.street ?? addr.address ?? '—'} />
+                  <DetailRow label="Ville"        value={addr.city ?? '—'} />
+                  <DetailRow label="Code postal"  value={addr.postalCode ?? addr.zip ?? '—'} />
+                  <DetailRow label="Pays"         value={addr.country ?? 'Maroc'} />
+                </>
+              ) : (
+                <p className="py-3 text-xs text-white/30">Adresse non renseignée</p>
+              )}
+            </div>
+          </div>
+
+          {/* Véhicules */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/30">
+                Véhicules ({vehicles.length})
+              </p>
+              <button onClick={() => setShowChassis(v => !v)}
+                className="flex items-center gap-1 text-xs text-white/50 hover:text-white transition-colors">
+                {showChassis ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                {showChassis ? 'Masquer' : 'Révéler châssis'}
+              </button>
+            </div>
+
+            {/* Résumé modèles */}
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {Object.entries(modelCounts).map(([model, count]) => (
+                <span key={model} className="text-xs px-2.5 py-1 rounded-lg font-medium text-brand-300 bg-brand-600/10 border border-brand-500/20">
+                  {count}× {model}
+                </span>
+              ))}
+            </div>
+
+            <div className="space-y-1 max-h-44 overflow-y-auto rounded-xl" style={{ background: 'rgba(255,255,255,0.04)' }}>
+              {vehicles.map((v: any, i: number) => (
+                <div key={i} className="flex items-center justify-between px-4 py-2.5 border-b border-white/5 last:border-0">
+                  <span className="font-mono text-sm text-white/90">
+                    {showChassis ? v.chassisId : maskChassis(v.chassisId)}
+                  </span>
+                  <span className="text-white/50 text-xs">{v.vehicleModelLabel ?? '—'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Note opérateur */}
+          {order.operatorNotes && (
+            <div className="rounded-xl p-4" style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.35)' }}>
+              <p className="text-white/50 text-xs font-semibold uppercase tracking-wider mb-1.5">Note opérateur</p>
+              <p className="text-white/90 text-sm leading-relaxed">{order.operatorNotes}</p>
+            </div>
+          )}
+
+          {/* Motif rejet / annulation */}
+          {order.rejectionReason && (
+            <div className="rounded-xl p-4" style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)' }}>
+              <p className="text-red-300/70 text-xs font-semibold uppercase tracking-wider mb-1.5">
+                {order.status === 'REJECTED' ? 'Motif de rejet' : 'Motif'}
+              </p>
+              <p className="text-white/90 text-sm leading-relaxed">{order.rejectionReason}</p>
+            </div>
+          )}
         </div>
 
-        <div className="flex justify-between gap-3 p-5 border-t border-white/10">
+        <div className="flex justify-between gap-3 px-6 py-4 border-t border-white/8">
           {canCancel ? (
             <button onClick={() => { onClose(); onCancel() }}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
@@ -693,8 +774,8 @@ function OrderDetailModal({ order, onClose, onCancel }: { order: any; onClose: (
             </button>
           ) : <div />}
           <button onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-            style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}>
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white/80 hover:text-white transition-colors"
+            style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)' }}>
             Fermer
           </button>
         </div>

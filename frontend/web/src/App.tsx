@@ -17,11 +17,13 @@ import OperateurTourneesPage from '@/pages/operateur/TourneesPage'
 import OperateurIncidentsPage from '@/pages/operateur/IncidentsPage'
 import OperateurOptimizationPage from '@/pages/operateur/OptimizationPage'
 import OperateurCancellationsPage from '@/pages/operateur/CancellationsPage'
+import OperateurMessagesPage from '@/pages/operateur/MessagesPage'
 
 // Client
 import ClientOrdersPage from '@/pages/client/OrdersPage'
 import ClientIncidentsPage from '@/pages/client/IncidentsPage'
 import ClientProfilePage from '@/pages/client/ProfilePage'
+import ClientCancellationsPage from '@/pages/client/CancellationsPage'
 
 // Responsable
 import ResponsableDashboardPage  from '@/pages/responsable/DashboardPage'
@@ -80,6 +82,7 @@ export default function App() {
         <Route path="incidents"     element={<OperateurIncidentsPage />} />
         <Route path="optimization"  element={<OperateurOptimizationPage />} />
         <Route path="cancellations" element={<OperateurCancellationsPage />} />
+        <Route path="messages"      element={<OperateurMessagesPage />} />
       </Route>
 
       {/* Responsable */}
@@ -106,9 +109,10 @@ export default function App() {
         </ProtectedRoute>
       }>
         <Route index element={<Navigate to="orders" replace />} />
-        <Route path="orders"    element={<ClientOrdersPage />} />
-        <Route path="incidents" element={<ClientIncidentsPage />} />
-        <Route path="profile"   element={<ClientProfilePage />} />
+        <Route path="orders"        element={<ClientOrdersPage />} />
+        <Route path="incidents"     element={<ClientIncidentsPage />} />
+        <Route path="cancellations" element={<ClientCancellationsPage />} />
+        <Route path="profile"       element={<ClientProfilePage />} />
       </Route>
 
       <Route path="/unauthorized" element={

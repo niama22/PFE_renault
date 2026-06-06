@@ -102,6 +102,10 @@ export const runOptimization = (orderIds: string[], clusterRadiusKm = 80, availa
     availableTrucksOnly,
   }).then(r => r.data.data)
 
+// ── Dashboard stats ───────────────────────────────────
+export const getResponsableDashboard = () =>
+  responsableApi.get<ApiResponse<any>>('/dashboard/stats').then(r => r.data.data)
+
 // Cancellations
 export const getResponsableCancellations = () =>
   responsableApi.get<any[]>('/cancellations').then(r => r.data ?? [])
